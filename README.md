@@ -166,15 +166,15 @@ AIP Germany/
 
 ```
 devfrff/
-├── src/                    # Source code
+├── src/                   # Source code
 │   ├── scraper.py         # Web scraping logic
 │   ├── pdf_generator.py   # PDF generation
-│   └── main.py           # CLI interface
+│   └── main.py            # CLI interface
 ├── scripts/               # Executable scripts
 ├── tests/                 # Test files
 ├── run.py                 # Main runner (moved to root)
 ├── environment.yml        # Conda environment
-└── README.md             # This file
+└── README.md              # This file
 ```
 
 ## Development
