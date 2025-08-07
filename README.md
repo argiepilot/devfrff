@@ -30,8 +30,8 @@ Now create a zip file of the folder AIP Germany. You can then import content pac
 
 **Features:**
 - Human-like browsing behavior (randomized pauses)
-- High-Resolution Downloads**: Downloads full-size chart images from print URLs
-- PDF Generation**: Converts images to PDF with proper BYOP naming
+- Downloads full-size chart images from print URLs
+- Converts images from DFS site to PDFs with proper BYOP naming
 - Automatic chart categorization (Visual/Info)
 - ForeFlight BYOP compatible format
 - Progress tracking and error handling
