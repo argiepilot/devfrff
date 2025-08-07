@@ -7,7 +7,7 @@ A CLI tool to collect VFR aerodrome charts and airport information from the DFS 
 
 **What it does:** Scrapes German VFR aerodrome charts from DFS AIP and creates ForeFlight BYOP content packs.
 
-**⚠️ Disclaimer:** This tool is provided for educational purposes only. It is your responsibility to ensure that use of this script is permitted in your jurisdiction and complies with all applicable laws and regulations. Always review and respect the terms of service of the data source (DFS AIP) and ForeFlight BYOP before using this tool. The authors and contributors are not affiliated with or endorsed by DFS AIP or ForeFlight, and assume no liability for any misuse or consequences arising from the use of this software.
+**⚠️ Disclaimer:** This tool is provided for educational purposes only. It is your responsibility to ensure that use of this script is permitted in your jurisdiction and complies with all applicable laws and regulations. Always review and respect the terms of service of the data source (DFS AIP) and ForeFlight BYOP before using this tool. The authors and contributors are not affiliated with or endorsed by DFS or ForeFlight, and assume no liability for any misuse or consequences arising from the use of this software.
 
 **Technology:** Python with Conda (Anaconda) environment management.
 
@@ -244,7 +244,7 @@ This project is licensed under the GPL v3.0 License - see the [LICENSE](LICENSE)
 
 ## Disclaimer
 
-This tool is provided for educational purposes only. It is your responsibility to ensure that use of this script is permitted in your jurisdiction and complies with all applicable laws and regulations. Always review and respect the terms of service of the data source (DFS AIP) and ForeFlight BYOP before using this tool. The authors and contributors are not affiliated with or endorsed by DFS AIP or ForeFlight, and assume no liability for any misuse or consequences arising from the use of this software.
+This tool is provided for educational purposes only. It is your responsibility to ensure that use of this script is permitted in your jurisdiction and complies with all applicable laws and regulations. Always review and respect the terms of service of the data source (DFS AIP) and ForeFlight BYOP before using this tool. The authors and contributors are not affiliated with or endorsed by DFS or ForeFlight, and assume no liability for any misuse or consequences arising from the use of this software.
 
 ## Contributing
 
