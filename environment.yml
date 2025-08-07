@@ -1,0 +1,21 @@
+name: devfrff
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - requests
+  - beautifulsoup4
+  - lxml
+  - pillow
+  - reportlab
+  - tqdm
+  - rich
+  - typer
+  - mypy
+  - black
+  - isort
+  - flake8
+  - pip
+  - pip:
+    - img2pdf 
