@@ -244,7 +244,7 @@ This project is licensed under the GPL v3.0 License - see the [LICENSE](LICENSE)
 
 ## Disclaimer
 
-This tool is for educational and personal use only. Please ensure it is permitted in your jurisdiction to run such a script. Please respect the DFS AIP website's terms of service and rate limiting. The generated content is intended for use with ForeFlight's BYOP feature in accordance with their terms of service.
+This tool is provided for educational purposes only. It is your responsibility to ensure that use of this script is permitted in your jurisdiction and complies with all applicable laws and regulations. Always review and respect the terms of service of the data source (DFS AIP) and ForeFlight BYOP before using this tool. The authors and contributors are not affiliated with or endorsed by DFS AIP or ForeFlight, and assume no liability for any misuse or consequences arising from the use of this software.
 
 ## Contributing
 
