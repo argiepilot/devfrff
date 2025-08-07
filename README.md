@@ -2,7 +2,7 @@
 
 A CLI tool to collect VFR aerodrome charts and airport information from the DFS AIP site and generate PDF files suitable for ForeFlight BYOP (Bring Your Own Plates) content packs.
 
-## 🚀 TL;DR 
+## TL;DR 
 
 **What it does:** Scrapes German VFR aerodrome charts from DFS AIP and creates ForeFlight BYOP content packs.
 
@@ -29,24 +29,15 @@ python run.py
 Now create a zip file of the folder AIP Germany. You can then import content packs (the zip file) into ForeFlight via AirDrop, email, iTunes, online hyperlinks, and ForeFlight’s Cloud Documents feature (requires a Pro plan or above). For more info on content packs, see: [ForeFlight Content Packs Guide](https://foreflight.com/support/content-packs/)
 
 **Features:**
-- ✅ Human-like browsing behavior (randomized pauses)
-- ✅ Automatic chart categorization (Visual/Info)
-- ✅ ForeFlight BYOP compatible format
-- ✅ Progress tracking and error handling
-- ✅ Rate limiting to avoid blocking
+- Human-like browsing behavior (randomized pauses)
+- High-Resolution Downloads**: Downloads full-size chart images from print URLs
+- PDF Generation**: Converts images to PDF with proper BYOP naming
+- Automatic chart categorization (Visual/Info)
+- ForeFlight BYOP compatible format
+- Progress tracking and error handling
+- Rate limiting to avoid blocking
 
 ---
-
-## Features
-
-- 🔍 **Smart Web Scraping**: Automatically navigates DFS AIP with human-like behavior
-- 📥 **High-Resolution Downloads**: Downloads full-size chart images from print URLs
-- 📄 **PDF Generation**: Converts images to PDF with proper BYOP naming
-- 🏷️ **Smart Categorization**: Automatically categorizes charts (Visual/Info)
-- 📊 **Rich Progress Tracking**: Console interface with progress bars and summaries
-- 🎯 **ForeFlight Compatible**: Generates complete BYOP content packs with manifest
-- ⏱️ **Rate Limiting**: Randomized pauses to mimic human browsing
-- 🛡️ **Error Handling**: Robust retry logic and graceful failure handling
 
 ## Installation
 
