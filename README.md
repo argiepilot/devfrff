@@ -1,3 +1,4 @@
+# deVFRff
 # Germany VFR Aerodrome Charts for ForeFlight BYOP
 
 A CLI tool to collect VFR aerodrome charts and airport information from the DFS AIP site and generate PDF files suitable for ForeFlight BYOP (Bring Your Own Plates) content packs.
