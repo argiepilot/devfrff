@@ -214,3 +214,6 @@ config.yml
 debug_*.html
 test_*.json
 AIP Germany*
+
+# mac stuff
+.DS_Store
