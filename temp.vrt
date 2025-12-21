@@ -1,0 +1,60 @@
+<VRTDataset rasterXSize="13546" rasterYSize="6067">
+  <SRS dataAxisToSRSAxisMapping="1,2">PROJCS["Lambert Conformal Conic",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101004,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]],PROJECTION["Lambert_Conformal_Conic_2SP"],PARAMETER["latitude_of_origin",61.1166666666667],PARAMETER["central_meridian",-150.5],PARAMETER["standard_parallel_1",62.6666666666667],PARAMETER["standard_parallel_2",57.3333333333333],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]</SRS>
+  <GeoTransform> -1.3838085282160895e+05,  2.1169604249004596e+01,  0.0000000000000000e+00,  6.4016131937475948e+04,  0.0000000000000000e+00, -2.1168456726355469e+01</GeoTransform>
+  <Metadata>
+    <MDI key="AREA_OR_POINT">Area</MDI>
+    <MDI key="TIFFTAG_DATETIME">2025:10:28 15:36:04</MDI>
+    <MDI key="TIFFTAG_RESOLUTIONUNIT">2 (pixels/inch)</MDI>
+    <MDI key="TIFFTAG_SOFTWARE">Adobe Photoshop 24.6 (Windows)</MDI>
+    <MDI key="TIFFTAG_XRESOLUTION">300</MDI>
+    <MDI key="TIFFTAG_YRESOLUTION">300</MDI>
+  </Metadata>
+  <Metadata domain="IMAGE_STRUCTURE">
+    <MDI key="INTERLEAVE">BAND</MDI>
+    <MDI key="COMPRESSION">LZW</MDI>
+  </Metadata>
+  <VRTRasterBand dataType="Byte" band="1" blockXSize="13546" blockYSize="1">
+    <ColorInterp>Red</ColorInterp>
+    <ComplexSource>
+      <SourceFilename relativeToVRT="1">VFR Charts Package/.temp/extracted/Anchorage TAC.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="13546" RasterYSize="6067" DataType="Byte" BlockXSize="13546" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <DstRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <ColorTableComponent>1</ColorTableComponent>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Byte" band="2" blockXSize="13546" blockYSize="1">
+    <ColorInterp>Green</ColorInterp>
+    <ComplexSource>
+      <SourceFilename relativeToVRT="1">VFR Charts Package/.temp/extracted/Anchorage TAC.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="13546" RasterYSize="6067" DataType="Byte" BlockXSize="13546" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <DstRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <ColorTableComponent>2</ColorTableComponent>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Byte" band="3" blockXSize="13546" blockYSize="1">
+    <ColorInterp>Blue</ColorInterp>
+    <ComplexSource>
+      <SourceFilename relativeToVRT="1">VFR Charts Package/.temp/extracted/Anchorage TAC.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="13546" RasterYSize="6067" DataType="Byte" BlockXSize="13546" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <DstRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <ColorTableComponent>3</ColorTableComponent>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Byte" band="4" blockXSize="13546" blockYSize="1">
+    <ColorInterp>Alpha</ColorInterp>
+    <ComplexSource>
+      <SourceFilename relativeToVRT="1">VFR Charts Package/.temp/extracted/Anchorage TAC.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="13546" RasterYSize="6067" DataType="Byte" BlockXSize="13546" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <DstRect xOff="0" yOff="0" xSize="13546" ySize="6067" />
+      <ColorTableComponent>4</ColorTableComponent>
+    </ComplexSource>
+  </VRTRasterBand>
+</VRTDataset>
