@@ -22,7 +22,6 @@ class PDFGenerator:
         # Create output directory and BYOP subdirectory
         self.output_dir.mkdir(exist_ok=True)
         (self.output_dir / "byop").mkdir(exist_ok=True)
-        (self.output_dir / "layers").mkdir(exist_ok=True)
 
     def sanitize_filename(self, filename: str) -> str:
         """Sanitize filename for BYOP format."""
@@ -128,7 +127,6 @@ class PDFGenerator:
         """Create the complete BYOP content pack structure."""
         # Create main directories
         (self.output_dir / "byop").mkdir(exist_ok=True)
-        (self.output_dir / "layers").mkdir(exist_ok=True)
 
         console.print(
             f"[green]Created BYOP content pack structure in: {self.output_dir}[/green]"
