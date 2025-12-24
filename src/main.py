@@ -38,7 +38,7 @@ def scrape(
     ),
 ) -> None:
     """Scrape aerodrome charts from DFS AIP site."""
-    console.print(Panel.fit("🔍 Scraping DFS AIP VFR Charts", style="bold blue"))
+    console.print(Panel.fit(" Scraping DFS AIP VFR Charts", style="bold blue"))
 
     try:
         scraper = AIPScraper()
@@ -56,7 +56,7 @@ def scrape(
             console.print(f"[green]Chart data saved to: {output_file}[/green]")
 
         console.print(
-            f"[bold green]✓ Scraping completed! Found {len(charts)} charts[/bold green]"
+            f"[bold green] Scraping completed! Found {len(charts)} charts[/bold green]"
         )
 
     except Exception as e:
@@ -76,7 +76,7 @@ def download(
 ) -> None:
     """Download charts and generate PDFs for ForeFlight BYOP."""
     console.print(
-        Panel.fit("📥 Downloading Charts & Generating PDFs", style="bold blue")
+        Panel.fit(" Downloading Charts & Generating PDFs", style="bold blue")
     )
 
     try:
@@ -113,11 +113,11 @@ def download(
                 if image_data:
                     charts_with_images.append((chart, image_data))
                     console.print(
-                        f"[green]✓[/green] Downloaded: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[green]Downloaded:[/green] {chart['icao_code']} - {chart['chart_name']}"
                     )
                 else:
                     console.print(
-                        f"[red]✗[/red] Failed: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[red]Failed:[/red] {chart['icao_code']} - {chart['chart_name']}"
                     )
 
         # Generate PDFs
@@ -162,7 +162,7 @@ def full_pipeline(
     """Run complete pipeline: scrape, download, and generate PDFs."""
     console.print(
         Panel.fit(
-            "🚀 Full Pipeline: Scrape → Download → Generate PDFs", style="bold blue"
+            " Full Pipeline: Scrape → Download → Generate PDFs", style="bold blue"
         )
     )
 
@@ -207,11 +207,11 @@ def full_pipeline(
                 if image_data:
                     charts_with_images.append((chart, image_data))
                     console.print(
-                        f"[green]✓[/green] Downloaded: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[green]Downloaded:[/green] {chart['icao_code']} - {chart['chart_name']}"
                     )
                 else:
                     console.print(
-                        f"[red]✗[/red] Failed: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[red]Failed:[/red] {chart['icao_code']} - {chart['chart_name']}"
                     )
 
         # Generate PDFs
@@ -226,7 +226,7 @@ def full_pipeline(
             display_download_summary(summary, len(charts), len(charts_with_images))
 
             console.print(
-                "\n[bold green]🎉 Pipeline completed successfully![/bold green]"
+                "\n[bold green] Pipeline completed successfully![/bold green]"
             )
             console.print(f"[green]BYOP content pack ready in: {output_dir}[/green]")
             if manifest_path:
@@ -243,7 +243,7 @@ def display_download_summary(
     summary: dict, total_charts: int, successful_downloads: int
 ) -> None:
     """Display a summary of the download and generation process."""
-    table = Table(title="📊 Download & Generation Summary")
+    table = Table(title=" Download & Generation Summary")
     table.add_column("Metric", style="cyan")
     table.add_column("Count", style="green")
 
@@ -276,7 +276,7 @@ def process_realistic(
     """Process aerodromes like a real user: airport → charts → PDFs → next airport."""
     console.print(
         Panel.fit(
-            "🛩️ Realistic Processing: Airport → Charts → PDFs → Next Airport", 
+            " Realistic Processing: Airport → Charts → PDFs → Next Airport", 
             style="bold blue"
         )
     )
@@ -309,7 +309,7 @@ def process_realistic(
         display_download_summary(summary, len(charts), len(charts))
 
         console.print(
-            "\n[bold green]🎉 Realistic processing completed successfully![/bold green]"
+            "\n[bold green] Realistic processing completed successfully![/bold green]"
         )
         console.print(f"[green]BYOP content pack ready in: {output_dir}[/green]")
         if manifest_path:
@@ -431,7 +431,7 @@ def process_faa_sectional(
         chart_type_label="Sectional charts",
     )
     console.print(
-        f"[green]✓[/green] Processed {len(charts_with_mbtiles)} FAA Sectional charts"
+        f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Sectional charts"
     )
 
 
@@ -476,7 +476,7 @@ def process_faa_terminal(
         chart_type_label="Terminal charts",
     )
     console.print(
-        f"[green]✓[/green] Processed {len(charts_with_mbtiles)} FAA Terminal Area charts"
+        f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Terminal Area charts"
     )
 
 
@@ -559,7 +559,7 @@ def process_all(
         if include_dfs:
             console.print("\n[bold cyan]Processing DFS Charts...[/bold cyan]")
             console.print(
-                "[yellow]ℹ️  Note: Delays are added between airports to mimic human browsing behavior "
+                "[yellow]  Note: Delays are added between airports to mimic human browsing behavior "
                 "and avoid overloading the server[/yellow]"
             )
             dfs_scraper = AIPScraper()
@@ -578,7 +578,7 @@ def process_all(
                 dfs_pdf_generator.current_date = dfs_scraper.current_date
                 packager.set_version(dfs_scraper.current_date)
             
-            console.print(f"[green]✓[/green] Processed {len(dfs_charts)} DFS charts")
+            console.print(f"[green]Processed:[/green] {len(dfs_charts)} DFS charts")
 
         # Process FAA Sectional charts
         if include_faa_sectional:
@@ -594,7 +594,7 @@ def process_all(
                 chart_type_label="Sectional charts",
             )
             console.print(
-                f"[green]✓[/green] Processed {len(charts_with_mbtiles)} FAA Sectional charts"
+                f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Sectional charts"
             )
 
         # Process FAA Terminal Area charts
@@ -611,7 +611,7 @@ def process_all(
                 chart_type_label="Terminal charts",
             )
             console.print(
-                f"[green]✓[/green] Processed {len(charts_with_mbtiles)} FAA Terminal Area charts"
+                f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Terminal Area charts"
             )
 
         # Set version if not set (e.g., if only FAA charts were processed)

@@ -95,7 +95,7 @@ class BYOPPackager:
             with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest_data, f, indent=2, ensure_ascii=False)
 
-            console.print(f"[green]✓[/green] Created manifest: {manifest_path.name}")
+            console.print(f"[green]Created manifest:[/green] {manifest_path.name}")
             return manifest_path
 
         except Exception as e:
@@ -127,7 +127,7 @@ class BYOPPackager:
         """Display a summary of the created package."""
         summary = self.get_package_summary()
 
-        console.print("\n[bold green]📦 BYOP Package Summary[/bold green]")
+        console.print("\n[bold green] BYOP Package Summary[/bold green]")
         console.print(f"[cyan]Package directory:[/cyan] {self.output_dir}")
         console.print(f"[cyan]Sources:[/cyan] {', '.join(self.sources)}")
         console.print(f"[cyan]Version:[/cyan] {self.version}")

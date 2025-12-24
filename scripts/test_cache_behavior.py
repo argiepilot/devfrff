@@ -17,7 +17,7 @@ console = Console()
 
 def test_cache_behavior():
     """Test the new caching behavior."""
-    console.print(Panel.fit("🧪 Testing Browser-Like Caching Behavior", style="bold blue"))
+    console.print(Panel.fit(" Testing Browser-Like Caching Behavior", style="bold blue"))
     
     try:
         # Initialize scraper
@@ -51,13 +51,13 @@ def test_cache_behavior():
             
             # Verify they're the same
             if aerodromes1 == aerodromes2:
-                console.print("[green]✓ Cache working correctly - same results[/green]")
+                console.print("[green] Cache working correctly - same results[/green]")
             else:
-                console.print("[red]✗ Cache issue - different results[/red]")
+                console.print("[red] Cache issue - different results[/red]")
         
         # Show cache statistics
         cache_stats = scraper.get_cache_stats()
-        console.print(f"\n[bold green]📊 Cache Statistics[/bold green]")
+        console.print(f"\n[bold green] Cache Statistics[/bold green]")
         console.print(f"[green]Cached pages: {cache_stats['cached_pages']}[/green]")
         console.print(f"[green]Cache size: {cache_stats['cache_size_kb']} KB[/green]")
         

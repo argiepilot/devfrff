@@ -13,7 +13,7 @@ from pdf_generator import PDFGenerator
 
 def example_scrape_only():
     """Example: Scrape chart information only."""
-    print("🔍 Example: Scraping chart information...")
+    print(" Example: Scraping chart information...")
     
     scraper = AIPScraper()
     charts = scraper.scrape_all_aerodromes()
@@ -29,7 +29,7 @@ def example_scrape_only():
 
 def example_download_single_chart():
     """Example: Download and convert a single chart."""
-    print("\n📥 Example: Downloading a single chart...")
+    print("\n Example: Downloading a single chart...")
     
     # Example chart data (you would get this from scraping)
     chart_info = {
@@ -55,16 +55,16 @@ def example_download_single_chart():
         pdf_path = pdf_generator.process_chart(chart_info, image_data)
         
         if pdf_path:
-            print(f"✓ Generated PDF: {pdf_path}")
+            print(f" Generated PDF: {pdf_path}")
         else:
-            print("✗ Failed to generate PDF")
+            print(" Failed to generate PDF")
     else:
-        print("✗ Failed to download chart image")
+        print(" Failed to download chart image")
 
 
 def example_batch_processing():
     """Example: Process multiple charts in batch."""
-    print("\n🚀 Example: Batch processing...")
+    print("\n Example: Batch processing...")
     
     # This would typically come from scraping
     example_charts = [
@@ -91,14 +91,14 @@ def example_batch_processing():
         
         if image_data:
             charts_with_images.append((chart, image_data))
-            print(f"  ✓ Downloaded {chart['icao_code']}")
+            print(f"   Downloaded {chart['icao_code']}")
         else:
-            print(f"  ✗ Failed to download {chart['icao_code']}")
+            print(f"   Failed to download {chart['icao_code']}")
     
     if charts_with_images:
         print(f"\nGenerating {len(charts_with_images)} PDFs...")
         successful_pdfs = pdf_generator.process_charts_batch(charts_with_images)
-        print(f"✓ Generated {len(successful_pdfs)} PDF files")
+        print(f" Generated {len(successful_pdfs)} PDF files")
 
 
 def main():
@@ -117,12 +117,12 @@ def main():
         example_batch_processing()
         
         print("\n" + "=" * 50)
-        print("✅ Examples completed successfully!")
+        print(" Examples completed successfully!")
         print("\nTo run the full tool:")
         print("  python scripts/run.py full-pipeline")
         
     except Exception as e:
-        print(f"\n❌ Example failed: {e}")
+        print(f"\n Example failed: {e}")
         return 1
     
     return 0

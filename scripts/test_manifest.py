@@ -21,13 +21,13 @@ def test_manifest_generation():
     manifest_path = pdf_gen.create_manifest()
     
     if manifest_path:
-        console.print(f"[green]✓[/green] Manifest created: {manifest_path}")
+        console.print(f"[green]Manifest created:[/green] {manifest_path}")
         # Read and display the manifest content
         with open(manifest_path, "r", encoding="utf-8") as f:
             content = f.read()
             console.print(f"[cyan]Manifest content:[/cyan]\n{content}")
     else:
-        console.print("[red]✗[/red] Failed to create manifest")
+        console.print("[red]Failed to create manifest[/red]")
     
     # Test 2: Without current date
     console.print("\n[bold blue]Test 2: Manifest without current date[/bold blue]")
@@ -35,22 +35,22 @@ def test_manifest_generation():
     manifest_path_no_date = pdf_gen_no_date.create_manifest()
     
     if manifest_path_no_date:
-        console.print(f"[green]✓[/green] Manifest created: {manifest_path_no_date}")
+        console.print(f"[green]Manifest created:[/green] {manifest_path_no_date}")
     else:
-        console.print("[yellow]⚠️  No manifest created (expected behavior)[/yellow]")
+        console.print("[yellow]  No manifest created (expected behavior)[/yellow]")
     
     # Test 3: Check directory structure
     console.print("\n[bold blue]Test 3: Directory structure[/bold blue]")
     output_dir = Path("test_manifest_output")
     if output_dir.exists():
-        console.print(f"[green]✓[/green] Output directory created: {output_dir}")
+        console.print(f"[green]Output directory created:[/green] {output_dir}")
         byop_dir = output_dir / "byop"
         if byop_dir.exists():
-            console.print(f"[green]✓[/green] BYOP subdirectory created: {byop_dir}")
+            console.print(f"[green]BYOP subdirectory created:[/green] {byop_dir}")
         else:
-            console.print("[red]✗[/red] BYOP subdirectory not created")
+            console.print("[red]BYOP subdirectory not created[/red]")
     else:
-        console.print("[red]✗[/red] Output directory not created")
+        console.print("[red]Output directory not created[/red]")
 
 if __name__ == "__main__":
     test_manifest_generation() 

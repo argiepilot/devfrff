@@ -1148,7 +1148,7 @@ class MBTilesConverter:
         # Preferred: rio-tiler pipeline (Python, full control)
         if self._convert_with_rio_tiler(geotiff_path, output_path, verbose=verbose):
             if verbose:
-                console.print(f"[green]✓[/green] Converted using rio-tiler")
+                console.print("[green]Converted using rio-tiler[/green]")
             
             if self._verify_mbtiles(output_path):
                 if self._verify_and_fix_zoom_levels(output_path):
@@ -1281,7 +1281,7 @@ class MBTilesConverter:
             # If tiles only exist at one zoom level (like 13), we need to warn
             if actual_minzoom == actual_maxzoom and actual_minzoom > self.max_zoom:
                 console.print(
-                    f"[yellow]⚠️  Warning: Tiles only exist at zoom {actual_maxzoom}, "
+                    f"[yellow]  Warning: Tiles only exist at zoom {actual_maxzoom}, "
                     f"but ForeFlight may need lower zoom levels (requested {self.min_zoom}-{self.max_zoom})[/yellow]"
                 )
                 
@@ -1370,11 +1370,11 @@ class MBTilesConverter:
                         chart["mbtiles_path"] = str(mbtiles_path)
                         charts_with_mbtiles.append(chart)
                         console.print(
-                            f"[green]✓[/green] Created: {mbtiles_filename}"
+                            f"[green]Created:[/green] {mbtiles_filename}"
                         )
                     else:
                         console.print(
-                            f"[red]✗[/red] Failed to convert {chart_name}"
+                            f"[red]Failed to convert {chart_name}[/red]"
                         )
 
                     progress.advance(task)

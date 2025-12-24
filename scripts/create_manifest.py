@@ -27,33 +27,33 @@ def create_manifest():
     manifest_path = pdf_generator.create_manifest()
     
     if manifest_path:
-        console.print(f"[green]✓[/green] Manifest created: {manifest_path}")
+        console.print(f"[green]Manifest created:[/green] {manifest_path}")
         
         # Read and display the manifest content
         with open(manifest_path, "r", encoding="utf-8") as f:
             content = f.read()
             console.print(f"[cyan]Manifest content:[/cyan]\n{content}")
     else:
-        console.print("[red]✗[/red] Failed to create manifest")
+        console.print("[red]Failed to create manifest[/red]")
     
     # Check directory structure
     output_dir = Path("AIP Germany")
     if output_dir.exists():
-        console.print(f"[green]✓[/green] Output directory: {output_dir}")
+        console.print(f"[green]Output directory:[/green] {output_dir}")
         
         byop_dir = output_dir / "byop"
         if byop_dir.exists():
             pdf_files = list(byop_dir.glob("*.PDF"))
-            console.print(f"[green]✓[/green] BYOP subdirectory: {byop_dir}")
-            console.print(f"[green]✓[/green] Found {len(pdf_files)} PDF files")
+            console.print(f"[green]BYOP subdirectory:[/green] {byop_dir}")
+            console.print(f"[green]Found {len(pdf_files)} PDF files[/green]")
         
         manifest_file = output_dir / "manifest.json"
         if manifest_file.exists():
-            console.print(f"[green]✓[/green] Manifest file: {manifest_file}")
+            console.print(f"[green]Manifest file:[/green] {manifest_file}")
         else:
-            console.print("[red]✗[/red] Manifest file not found")
+            console.print("[red]Manifest file not found[/red]")
     else:
-        console.print("[red]✗[/red] Output directory not found")
+        console.print("[red]Output directory not found[/red]")
 
 if __name__ == "__main__":
     create_manifest() 

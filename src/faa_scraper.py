@@ -511,7 +511,7 @@ class FAAScraper:
                         chart["geotiff_path"] = str(geotiff_path)
                         charts_with_files.append(chart)
                         console.print(
-                            f"[green]✓[/green] Extracted: {chart_name} -> {geotiff_path.name}"
+                            f"[green]Extracted:[/green] {chart_name} -> {geotiff_path.name}"
                         )
                     else:
                         console.print(f"[yellow]No GeoTIFF found in {chart_name}[/yellow]")
@@ -557,6 +557,6 @@ class FAAScraper:
             
             # After progress closes, print final status
             # The spinner line should be cleared by removing the task
-            console.print("[green]✓[/green] Extracting")
+            console.print("[green]Extracting[/green]")
 
         return charts_with_files

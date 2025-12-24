@@ -28,23 +28,23 @@ def test_default_folder_name():
     
     # Check if directories are created correctly
     if pdf_generator.output_dir.exists():
-        console.print(f"[green]✓[/green] Default directory exists: {pdf_generator.output_dir}")
+        console.print(f"[green]Default directory exists:[/green] {pdf_generator.output_dir}")
     else:
-        console.print(f"[yellow]⚠️[/yellow] Default directory doesn't exist yet (will be created when needed)")
+        console.print(f"[yellow]Default directory doesn't exist yet (will be created when needed)[/yellow]")
     
     # Check byop subdirectory
     byop_dir = pdf_generator.output_dir / "byop"
     if byop_dir.exists():
-        console.print(f"[green]✓[/green] BYOP subdirectory exists: {byop_dir}")
+        console.print(f"[green]BYOP subdirectory exists:[/green] {byop_dir}")
     else:
-        console.print(f"[yellow]⚠️[/yellow] BYOP subdirectory doesn't exist yet (will be created when needed)")
+        console.print(f"[yellow]BYOP subdirectory doesn't exist yet (will be created when needed)[/yellow]")
     
     # Test manifest creation with default folder
     manifest_path = pdf_generator.create_manifest()
     if manifest_path:
-        console.print(f"[green]✓[/green] Manifest created in default folder: {manifest_path}")
+        console.print(f"[green]Manifest created in default folder:[/green] {manifest_path}")
     else:
-        console.print("[yellow]⚠️[/yellow] No manifest created (expected without current_date)")
+        console.print("[yellow]No manifest created (expected without current_date)[/yellow]")
     
     console.print("\n[bold green]Default folder name test completed![/bold green]")
 

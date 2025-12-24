@@ -12,10 +12,10 @@ def test_imports():
     try:
         from scraper import AIPScraper
         from pdf_generator import PDFGenerator
-        print("✓ All modules imported successfully")
+        print(" All modules imported successfully")
         return True
     except ImportError as e:
-        print(f"✗ Import error: {e}")
+        print(f" Import error: {e}")
         return False
 
 def test_scraper_init():
@@ -23,10 +23,10 @@ def test_scraper_init():
     try:
         from scraper import AIPScraper
         scraper = AIPScraper()
-        print("✓ Scraper initialized successfully")
+        print(" Scraper initialized successfully")
         return True
     except Exception as e:
-        print(f"✗ Scraper initialization error: {e}")
+        print(f" Scraper initialization error: {e}")
         return False
 
 def test_pdf_generator_init():
@@ -34,10 +34,10 @@ def test_pdf_generator_init():
     try:
         from pdf_generator import PDFGenerator
         generator = PDFGenerator("test_output")
-        print("✓ PDF generator initialized successfully")
+        print(" PDF generator initialized successfully")
         return True
     except Exception as e:
-        print(f"✗ PDF generator initialization error: {e}")
+        print(f" PDF generator initialization error: {e}")
         return False
 
 def test_url_building():
@@ -58,14 +58,14 @@ def test_url_building():
         result = scraper._build_print_url(page_id, chart_name)
         
         if result == expected_url:
-            print("✓ URL building works correctly")
+            print(" URL building works correctly")
             return True
         else:
-            print(f"✗ URL building failed. Expected: {expected_url}, Got: {result}")
+            print(f" URL building failed. Expected: {expected_url}, Got: {result}")
             return False
             
     except Exception as e:
-        print(f"✗ URL building error: {e}")
+        print(f" URL building error: {e}")
         return False
 
 def main():
@@ -90,10 +90,10 @@ def main():
     print(f"Results: {passed}/{total} tests passed")
     
     if passed == total:
-        print("🎉 All tests passed! Tool is ready to use.")
+        print(" All tests passed! Tool is ready to use.")
         return 0
     else:
-        print("❌ Some tests failed. Please check the errors above.")
+        print(" Some tests failed. Please check the errors above.")
         return 1
 
 if __name__ == "__main__":
