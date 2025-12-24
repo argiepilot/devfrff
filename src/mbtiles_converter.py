@@ -1007,7 +1007,7 @@ class MBTilesConverter:
                         
                         progress = progress_display
 
-                        workers = max(2, os.cpu_count()-2 or 1)
+                        workers = max(2, (os.cpu_count() or 1) - 2)
                         if verbose:
                             console.print(f"Using {workers} cores")
                         tile_size = self.tile_size

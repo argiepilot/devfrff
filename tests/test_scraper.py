@@ -35,38 +35,77 @@ class TestAIPScraper:
         scraper = AIPScraper()
         
         # Test basic sanitization
-        assert scraper.sanitize_filename("Test Chart") == "Test Chart"
-        assert scraper.sanitize_filename("Test<Chart>") == "Test_Chart_"
-        assert scraper.sanitize_filename("  Test  Chart  ") == "Test Chart"
+        # Note: sanitize_filename replaces spaces with underscores
+        # and replaces invalid characters (<, >, etc.) with underscores
+        # Multiple consecutive underscores/spaces are collapsed to a single underscore
+        assert scraper.sanitize_filename("Test Chart") == "Test_Chart"
+        assert scraper.sanitize_filename("Test<Chart>") == "Test_Chart"  # < and > become _, then collapsed
+        assert scraper.sanitize_filename("  Test  Chart  ") == "Test_Chart"  # Spaces become _, then collapsed
 
-    @patch('src.scraper.requests.Session.get')
-    def test_get_aerodrome_list_page(self, mock_get):
+    @patch('src.scraper.AIPScraper._make_request')
+    @patch('src.scraper.AIPScraper.get_main_aip_page')
+    @patch('src.scraper.AIPScraper.extract_vfr_online_link')
+    @patch('src.scraper.AIPScraper.extract_aerodromes_section_link')
+    def test_get_aerodrome_list_page(
+        self, mock_extract_aerodromes, mock_extract_vfr, mock_get_main, mock_make_request
+    ):
         """Test getting aerodrome list page."""
-        mock_response = Mock()
-        mock_response.text = "<html><body>Test content</body></html>"
-        mock_response.raise_for_status.return_value = None
-        mock_get.return_value = mock_response
+        # Mock the chain of method calls
+        mock_get_main.return_value = "<html><body>Main AIP page</body></html>"
+        mock_extract_vfr.return_value = "https://aip.dfs.de/basicVFR/2025JAN01/"
+        
+        # Mock VFR Online response
+        mock_vfr_response = Mock()
+        mock_vfr_response.text = "<html><body>VFR Online page</body></html>"
+        # Date format must match regex: \d{4}[A-Z]{3}\d{2} (e.g., 2025JAN01)
+        mock_vfr_response.url = "https://aip.dfs.de/basicVFR/2025JAN01/"
+        
+        # Mock aerodromes section response
+        mock_aerodromes_response = Mock()
+        mock_aerodromes_response.text = "<html><body>Aerodromes page</body></html>"
+        
+        mock_extract_aerodromes.return_value = "https://aip.dfs.de/basicVFR/2025JAN01/AD"
+        
+        # Set up _make_request to return different responses based on URL
+        def make_request_side_effect(url):
+            if "basicVFR" in url and "AD" not in url:
+                return mock_vfr_response
+            return mock_aerodromes_response
+        
+        mock_make_request.side_effect = make_request_side_effect
         
         scraper = AIPScraper()
         result = scraper.get_aerodrome_list_page()
         
-        assert result == "<html><body>Test content</body></html>"
-        mock_get.assert_called_once()
+        assert result == "<html><body>Aerodromes page</body></html>"
+        mock_get_main.assert_called_once()
+        mock_extract_vfr.assert_called_once()
+        assert mock_make_request.call_count == 2  # Called for VFR Online and aerodromes
 
-    def test_extract_aerodrome_links(self):
+    @patch('src.scraper.AIPScraper.get_aerodromes_from_section')
+    def test_extract_aerodrome_links(self, mock_get_aerodromes):
         """Test aerodrome link extraction."""
         scraper = AIPScraper()
         
-        # Mock HTML with aerodrome links
+        # Mock HTML with alphabetical section links (folder-link structure)
         html = """
         <html>
             <body>
-                <a href="pages/123456.html">EDFE Frankfurt-Egelsbach 5</a>
-                <a href="pages/789012.html">EDDF Frankfurt-Main 3</a>
-                <a href="other.html">Not an aerodrome</a>
+                <a href="/basicVFR/2025JAN01/AD/A-B" class="folder-link">
+                    <span class="folder-name">A-B</span>
+                </a>
+                <a href="/basicVFR/2025JAN01/AD/C-D" class="folder-link">
+                    <span class="folder-name">C-D</span>
+                </a>
             </body>
         </html>
         """
+        
+        # Mock get_aerodromes_from_section to return aerodromes for each section
+        mock_get_aerodromes.side_effect = [
+            [("EDFE", "Frankfurt-Egelsbach 5", "url1")],  # First section
+            [("EDDF", "Frankfurt-Main 3", "url2")],  # Second section
+        ]
         
         result = scraper.extract_aerodrome_links(html)
         
@@ -75,6 +114,7 @@ class TestAIPScraper:
         assert result[0][1] == "Frankfurt-Egelsbach 5"  # Name
         assert result[1][0] == "EDDF"  # ICAO code
         assert result[1][1] == "Frankfurt-Main 3"  # Name
+        assert mock_get_aerodromes.call_count == 2  # Called for each section
 
 
 if __name__ == "__main__":
