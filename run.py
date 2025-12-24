@@ -24,7 +24,9 @@ if __name__ == "__main__":
     
     # Check if first argument is a valid command
     if len(sys.argv) == 1 or (len(sys.argv) > 1 and sys.argv[1] not in valid_commands):
-        # No valid command specified, add process-all
+        # No valid command specified: default to process-all, but prompt interactively
+        # (y/n questions defaulting to Yes)
         sys.argv.insert(1, "process-all")
+        sys.argv.insert(2, "--interactive")
     
     app()

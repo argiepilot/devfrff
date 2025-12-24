@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer
+from rich.prompt import Confirm
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -380,6 +381,15 @@ def _faa_pipeline(
                 console.print(f"[yellow]Could not clean up temp directory: {e}[/yellow]")
 
 
+def _prompt_process_all_sources() -> tuple[bool, bool, bool]:
+    """Prompt y/n for sources when running process-all interactively (defaults to Yes)."""
+    console.print("\n[bold cyan]Select sources to include:[/bold cyan]")
+    include_dfs = Confirm.ask("  Include DFS (Germany) PDFs?", default=True)
+    include_faa_sectional = Confirm.ask("  Include FAA Sectional (MBTiles)?", default=True)
+    include_faa_terminal = Confirm.ask("  Include FAA Terminal Area (MBTiles)?", default=True)
+    return include_dfs, include_faa_sectional, include_faa_terminal
+
+
 @app.command()
 def process_faa_sectional(
     output_dir: str = typer.Option(
@@ -487,6 +497,11 @@ def process_all(
     section_pause: float = typer.Option(
         15.0, "--section-pause", help="Pause between DFS letter sections in seconds"
     ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        help="Ask y/n questions for which sources to include (defaults to Yes)",
+    ),
     include_dfs: bool = typer.Option(
         True, "--dfs/--no-dfs", help="Include DFS (Germany) PDF charts"
     ),
@@ -517,6 +532,9 @@ def process_all(
 ) -> None:
     """Process all chart sources into a unified BYOP package (DFS + FAA by default)."""
     console.print("[bold cyan]Processing selected chart sources into unified BYOP package...[/bold cyan]")
+
+    if interactive:
+        include_dfs, include_faa_sectional, include_faa_terminal = _prompt_process_all_sources()
 
     if not (include_dfs or include_faa_sectional or include_faa_terminal):
         raise typer.BadParameter("Nothing selected. Enable at least one source.")
