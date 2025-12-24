@@ -18,7 +18,7 @@ console = Console()
 
 def debug_aip_structure():
     """Debug the AIP HTML structure."""
-    console.print(Panel.fit("🔍 Debugging DFS AIP Structure", style="bold blue"))
+    console.print(Panel.fit(" Debugging DFS AIP Structure", style="bold blue"))
     
     try:
         # Initialize scraper
@@ -29,7 +29,7 @@ def debug_aip_structure():
         console.print("[yellow]Fetching main page...[/yellow]")
         html = scraper.get_aerodrome_list_page()
         
-        console.print(f"[green]✓ Successfully fetched page[/green]")
+        console.print(f"[green] Successfully fetched page[/green]")
         console.print(f"Content length: {len(html)} characters")
         
         # Parse HTML

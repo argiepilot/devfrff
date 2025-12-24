@@ -22,6 +22,8 @@ class PDFGenerator:
         # Create output directory and BYOP subdirectory
         self.output_dir.mkdir(exist_ok=True)
         (self.output_dir / "byop").mkdir(exist_ok=True)
+        # Keep layers directory for unified packages (FAA mbtiles live here)
+        (self.output_dir / "layers").mkdir(exist_ok=True)
 
     def sanitize_filename(self, filename: str) -> str:
         """Sanitize filename for BYOP format."""
@@ -79,11 +81,11 @@ class PDFGenerator:
 
             # Convert image to PDF
             if self.image_to_pdf(image_data, output_path):
-                console.print(f"[green]✓[/green] Generated: {filename}")
+                console.print(f"[green]Generated:[/green] {filename}")
                 return output_path
             else:
                 console.print(
-                    f"[red]✗[/red] Failed to generate PDF for {chart_info['icao_code']}"
+                    f"[red]Failed to generate PDF for {chart_info['icao_code']}[/red]"
                 )
                 return None
 
@@ -127,6 +129,7 @@ class PDFGenerator:
         """Create the complete BYOP content pack structure."""
         # Create main directories
         (self.output_dir / "byop").mkdir(exist_ok=True)
+        (self.output_dir / "layers").mkdir(exist_ok=True)
 
         console.print(
             f"[green]Created BYOP content pack structure in: {self.output_dir}[/green]"
@@ -135,7 +138,7 @@ class PDFGenerator:
     def create_manifest(self) -> Optional[Path]:
         """Create ForeFlight BYOP manifest.json file."""
         if not self.current_date:
-            console.print("[yellow]⚠️  No current date available, skipping manifest creation[/yellow]")
+            console.print("[yellow]No current date available, skipping manifest creation[/yellow]")
             return None
             
         manifest_data = {
@@ -151,7 +154,7 @@ class PDFGenerator:
             with open(manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest_data, f, indent=2, ensure_ascii=False)
             
-            console.print(f"[green]✓[/green] Created manifest: {manifest_path.name}")
+            console.print(f"[green]Created manifest:[/green] {manifest_path.name}")
             return manifest_path
             
         except Exception as e:

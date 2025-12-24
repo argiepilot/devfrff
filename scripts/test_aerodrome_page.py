@@ -16,7 +16,7 @@ console = Console()
 
 def test_aerodrome_page():
     """Test accessing an actual aerodrome page."""
-    console.print("🔍 Testing aerodrome page access...")
+    console.print(" Testing aerodrome page access...")
     
     try:
         # Use the scraper to dynamically get a test aerodrome page
@@ -51,7 +51,7 @@ def test_aerodrome_page():
         # Test the aerodrome page
         response = scraper._make_request(test_url)
         
-        console.print(f"[green]✓ Successfully fetched aerodrome page[/green]")
+        console.print(f"[green] Successfully fetched aerodrome page[/green]")
         console.print(f"Content length: {len(response.text)} characters")
         
         # Parse HTML

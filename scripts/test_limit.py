@@ -17,7 +17,7 @@ console = Console()
 
 def test_limit_functionality():
     """Test the new limit functionality."""
-    console.print(Panel.fit("🎯 Testing Aerodrome Limit Functionality", style="bold blue"))
+    console.print(Panel.fit(" Testing Aerodrome Limit Functionality", style="bold blue"))
     
     try:
         # Test with limit of 5 aerodromes
@@ -31,7 +31,7 @@ def test_limit_functionality():
         charts = scraper.scrape_all_aerodromes(limit_aerodromes=test_limit)
         
         # Show results
-        console.print(f"\n[bold green]📊 Test Results[/bold green]")
+        console.print(f"\n[bold green] Test Results[/bold green]")
         console.print(f"[green]Charts found: {len(charts)}[/green]")
         
         # Show unique aerodromes found
@@ -45,11 +45,11 @@ def test_limit_functionality():
         
         # Verify limit was respected
         if len(unique_icao) <= test_limit:
-            console.print(f"[green]✓ Limit respected: {len(unique_icao)} ≤ {test_limit} aerodromes[/green]")
+            console.print(f"[green] Limit respected: {len(unique_icao)} ≤ {test_limit} aerodromes[/green]")
         else:
-            console.print(f"[red]✗ Limit exceeded: {len(unique_icao)} > {test_limit} aerodromes[/red]")
+            console.print(f"[red] Limit exceeded: {len(unique_icao)} > {test_limit} aerodromes[/red]")
         
-        console.print(f"\n[bold cyan]💡 Perfect for testing PDF generation![/bold cyan]")
+        console.print(f"\n[bold cyan] Perfect for testing PDF generation![/bold cyan]")
         console.print(f"[cyan]Use: python -m src.main full-pipeline --limit {test_limit}[/cyan]")
         
     except Exception as e:

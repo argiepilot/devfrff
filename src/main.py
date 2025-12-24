@@ -1,17 +1,22 @@
 """Main CLI module for Germany VFR Approach Charts for ForeFlight."""
 
 import json
+import shutil
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import typer
+from rich.prompt import Confirm
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
 from pdf_generator import PDFGenerator
 from scraper import AIPScraper
+from faa_scraper import FAAScraper
+from mbtiles_converter import MBTilesConverter
+from byop_packager import BYOPPackager
 
 console = Console()
 app = typer.Typer(help="Germany VFR Approach Charts for ForeFlight BYOP")
@@ -33,7 +38,7 @@ def scrape(
     ),
 ) -> None:
     """Scrape aerodrome charts from DFS AIP site."""
-    console.print(Panel.fit("🔍 Scraping DFS AIP VFR Charts", style="bold blue"))
+    console.print(Panel.fit(" Scraping DFS AIP VFR Charts", style="bold blue"))
 
     try:
         scraper = AIPScraper()
@@ -51,7 +56,7 @@ def scrape(
             console.print(f"[green]Chart data saved to: {output_file}[/green]")
 
         console.print(
-            f"[bold green]✓ Scraping completed! Found {len(charts)} charts[/bold green]"
+            f"[bold green]Scraping completed! Found {len(charts)} charts[/bold green]"
         )
 
     except Exception as e:
@@ -71,7 +76,7 @@ def download(
 ) -> None:
     """Download charts and generate PDFs for ForeFlight BYOP."""
     console.print(
-        Panel.fit("📥 Downloading Charts & Generating PDFs", style="bold blue")
+        Panel.fit("Downloading Charts & Generating PDFs", style="bold blue")
     )
 
     try:
@@ -108,11 +113,11 @@ def download(
                 if image_data:
                     charts_with_images.append((chart, image_data))
                     console.print(
-                        f"[green]✓[/green] Downloaded: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[green]Downloaded:[/green] {chart['icao_code']} - {chart['chart_name']}"
                     )
                 else:
                     console.print(
-                        f"[red]✗[/red] Failed: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[red]Failed:[/red] {chart['icao_code']} - {chart['chart_name']}"
                     )
 
         # Generate PDFs
@@ -157,7 +162,7 @@ def full_pipeline(
     """Run complete pipeline: scrape, download, and generate PDFs."""
     console.print(
         Panel.fit(
-            "🚀 Full Pipeline: Scrape → Download → Generate PDFs", style="bold blue"
+            "Full Pipeline: Scrape → Download → Generate PDFs", style="bold blue"
         )
     )
 
@@ -202,11 +207,11 @@ def full_pipeline(
                 if image_data:
                     charts_with_images.append((chart, image_data))
                     console.print(
-                        f"[green]✓[/green] Downloaded: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[green]Downloaded:[/green] {chart['icao_code']} - {chart['chart_name']}"
                     )
                 else:
                     console.print(
-                        f"[red]✗[/red] Failed: {chart['icao_code']} - {chart['chart_name']}"
+                        f"[red]Failed:[/red] {chart['icao_code']} - {chart['chart_name']}"
                     )
 
         # Generate PDFs
@@ -221,7 +226,7 @@ def full_pipeline(
             display_download_summary(summary, len(charts), len(charts_with_images))
 
             console.print(
-                "\n[bold green]🎉 Pipeline completed successfully![/bold green]"
+                "\n[bold green]Pipeline completed successfully![/bold green]"
             )
             console.print(f"[green]BYOP content pack ready in: {output_dir}[/green]")
             if manifest_path:
@@ -238,7 +243,7 @@ def display_download_summary(
     summary: dict, total_charts: int, successful_downloads: int
 ) -> None:
     """Display a summary of the download and generation process."""
-    table = Table(title="📊 Download & Generation Summary")
+    table = Table(title=" Download & Generation Summary")
     table.add_column("Metric", style="cyan")
     table.add_column("Count", style="green")
 
@@ -271,7 +276,7 @@ def process_realistic(
     """Process aerodromes like a real user: airport → charts → PDFs → next airport."""
     console.print(
         Panel.fit(
-            "🛩️ Realistic Processing: Airport → Charts → PDFs → Next Airport", 
+            "Realistic Processing: Airport → Charts → PDFs → Next Airport", 
             style="bold blue"
         )
     )
@@ -304,7 +309,7 @@ def process_realistic(
         display_download_summary(summary, len(charts), len(charts))
 
         console.print(
-            "\n[bold green]🎉 Realistic processing completed successfully![/bold green]"
+            "\n[bold green]Realistic processing completed successfully![/bold green]"
         )
         console.print(f"[green]BYOP content pack ready in: {output_dir}[/green]")
         if manifest_path:
@@ -315,19 +320,345 @@ def process_realistic(
         sys.exit(1)
 
 
+def _faa_pipeline(
+    *,
+    chart_type: str,
+    output_dir: str,
+    limit: Optional[int],
+    min_zoom: int,
+    max_zoom: int,
+    verbose: bool,
+    chart_type_label: str,
+) -> List[dict]:
+    """Run the FAA pipeline for a single chart type ("sectional" or "terminal")."""
+    if chart_type not in {"sectional", "terminal"}:
+        raise ValueError(f"Invalid FAA chart type: {chart_type}")
+
+    faa_scraper = FAAScraper()
+    mbtiles_converter = MBTilesConverter(
+        min_zoom=min_zoom,
+        max_zoom=max_zoom,
+        verbose=verbose,
+    )
+
+    # Create temporary directories
+    temp_dir = Path(output_dir) / ".temp"
+    download_dir = temp_dir / "downloads"
+    extract_dir = temp_dir / "extracted"
+    layers_dir = Path(output_dir) / "layers"
+
+    try:
+        charts = faa_scraper.scrape_charts(
+            chart_types=[chart_type],
+            limit=limit,
+            verbose=verbose,
+        )
+
+        if not charts:
+            console.print(f"[yellow]No {chart_type_label} charts found[/yellow]")
+            return []
+
+        charts_with_files = faa_scraper.download_and_extract_charts(
+            charts,
+            download_dir,
+            extract_dir,
+            verbose=verbose,
+        )
+
+        charts_with_mbtiles = mbtiles_converter.convert_batch(
+            charts_with_files,
+            layers_dir,
+            chart_type_label=chart_type_label,
+        )
+
+        return charts_with_mbtiles
+    finally:
+        # Clean up temp directories
+        if temp_dir.exists():
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                console.print(f"[yellow]Could not clean up temp directory: {e}[/yellow]")
+
+
+def _prompt_process_all_sources() -> tuple[bool, bool, bool]:
+    """Prompt y/n for sources when running process-all interactively (defaults to Yes)."""
+    console.print("\n[bold cyan]Select sources to include:[/bold cyan]")
+    include_dfs = Confirm.ask("  Include DFS (Germany) PDFs?", default=True)
+    include_faa_sectional = Confirm.ask("  Include FAA Sectional (MBTiles)?", default=True)
+    include_faa_terminal = Confirm.ask("  Include FAA Terminal Area (MBTiles)?", default=True)
+    return include_dfs, include_faa_sectional, include_faa_terminal
+
+
+@app.command()
+def process_faa_sectional(
+    output_dir: str = typer.Option(
+        "VFR Charts Package",
+        "--output-dir",
+        "-d",
+        help="Output directory for BYOP package",
+    ),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Limit number of FAA charts to process (for testing)",
+    ),
+    quick: bool = typer.Option(
+        False,
+        "--quick",
+        help="Faster run: reduce max zoom to 9 (unless --max-zoom is provided)",
+    ),
+    min_zoom: int = typer.Option(6, "--min-zoom", help="Minimum zoom level"),
+    max_zoom: Optional[int] = typer.Option(
+        None, "--max-zoom", help="Maximum zoom level (default: 12, or 9 if --quick)"
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Verbose output with detailed progress information"
+    ),
+) -> None:
+    """Process FAA Sectional charts into MBTiles (layers/)."""
+    resolved_max_zoom = 9 if (quick and max_zoom is None) else (max_zoom or 12)
+
+    console.print("\n[bold cyan]Processing FAA Sectional Charts...[/bold cyan]")
+    charts_with_mbtiles = _faa_pipeline(
+        chart_type="sectional",
+        output_dir=output_dir,
+        limit=limit,
+        min_zoom=min_zoom,
+        max_zoom=resolved_max_zoom,
+        verbose=verbose,
+        chart_type_label="Sectional charts",
+    )
+    console.print(
+        f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Sectional charts"
+    )
+
+
+@app.command()
+def process_faa_terminal(
+    output_dir: str = typer.Option(
+        "VFR Charts Package",
+        "--output-dir",
+        "-d",
+        help="Output directory for BYOP package",
+    ),
+    limit: Optional[int] = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Limit number of FAA charts to process (for testing)",
+    ),
+    quick: bool = typer.Option(
+        False,
+        "--quick",
+        help="Faster run: reduce max zoom to 9 (unless --max-zoom is provided)",
+    ),
+    min_zoom: int = typer.Option(6, "--min-zoom", help="Minimum zoom level"),
+    max_zoom: Optional[int] = typer.Option(
+        None, "--max-zoom", help="Maximum zoom level (default: 12, or 9 if --quick)"
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Verbose output with detailed progress information"
+    ),
+) -> None:
+    """Process FAA Terminal Area charts into MBTiles (layers/)."""
+    resolved_max_zoom = 9 if (quick and max_zoom is None) else (max_zoom or 12)
+
+    console.print("\n[bold cyan]Processing FAA Terminal Area Charts...[/bold cyan]")
+    charts_with_mbtiles = _faa_pipeline(
+        chart_type="terminal",
+        output_dir=output_dir,
+        limit=limit,
+        min_zoom=min_zoom,
+        max_zoom=resolved_max_zoom,
+        verbose=verbose,
+        chart_type_label="Terminal charts",
+    )
+    console.print(
+        f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Terminal Area charts"
+    )
+
+
+@app.command()
+def process_all(
+    output_dir: str = typer.Option(
+        "VFR Charts Package", "--output-dir", "-d", help="Output directory for BYOP package"
+    ),
+    limit_dfs: Optional[int] = typer.Option(
+        None, "--limit-dfs", help="Limit number of DFS aerodromes to process"
+    ),
+    limit_faa: Optional[int] = typer.Option(
+        None, "--limit-faa", help="Limit number of FAA charts per type to process"
+    ),
+    airport_pause: float = typer.Option(
+        5.0, "--airport-pause", help="Pause between DFS airports in seconds"
+    ),
+    section_pause: float = typer.Option(
+        15.0, "--section-pause", help="Pause between DFS letter sections in seconds"
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        help="Ask y/n questions for which sources to include (defaults to Yes)",
+    ),
+    include_dfs: bool = typer.Option(
+        True, "--dfs/--no-dfs", help="Include DFS (Germany) PDF charts"
+    ),
+    include_faa_sectional: bool = typer.Option(
+        True,
+        "--faa-sectional/--no-faa-sectional",
+        help="Include FAA Sectional charts (MBTiles)",
+    ),
+    include_faa_terminal: bool = typer.Option(
+        True,
+        "--faa-terminal/--no-faa-terminal",
+        help="Include FAA Terminal Area charts (MBTiles)",
+    ),
+    faa_quick: bool = typer.Option(
+        False,
+        "--faa-quick",
+        help="Faster FAA conversions: reduce max zoom to 9 (unless --faa-max-zoom is set)",
+    ),
+    faa_min_zoom: int = typer.Option(6, "--faa-min-zoom", help="FAA min zoom level"),
+    faa_max_zoom: Optional[int] = typer.Option(
+        None,
+        "--faa-max-zoom",
+        help="FAA max zoom level (default: 12, or 9 if --faa-quick)",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Verbose output with detailed progress information"
+    ),
+) -> None:
+    """Process all chart sources into a unified BYOP package (DFS + FAA by default)."""
+    console.print("[bold cyan]Processing selected chart sources into unified BYOP package...[/bold cyan]")
+
+    if interactive:
+        include_dfs, include_faa_sectional, include_faa_terminal = _prompt_process_all_sources()
+
+    if not (include_dfs or include_faa_sectional or include_faa_terminal):
+        raise typer.BadParameter("Nothing selected. Enable at least one source.")
+
+    selected_sources: List[str] = []
+    if include_dfs:
+        selected_sources.append("DFS")
+    if include_faa_sectional:
+        selected_sources.append("FAA Sectional")
+    if include_faa_terminal:
+        selected_sources.append("FAA Terminal")
+
+    console.print(f"\n[green]Selected sources: {', '.join(selected_sources)}[/green]")
+
+    try:
+        # Initialize packager
+        packager = BYOPPackager(output_dir)
+        for source in selected_sources:
+            packager.add_source(source)
+
+        # Process DFS charts
+        if include_dfs:
+            console.print("\n[bold cyan]Processing DFS Charts...[/bold cyan]")
+            console.print(
+                "[yellow]Note: Delays are added between airports to mimic human browsing behavior "
+                "and avoid overloading the server[/yellow]"
+            )
+            dfs_scraper = AIPScraper()
+            dfs_pdf_generator = PDFGenerator(output_dir)
+            
+            # Process aerodromes
+            dfs_charts = dfs_scraper.scrape_and_process_aerodromes(
+                pdf_generator=dfs_pdf_generator,
+                limit_aerodromes=limit_dfs,
+                airport_pause=airport_pause,
+                section_pause=section_pause
+            )
+            
+            # Update PDF generator with current_date
+            if hasattr(dfs_scraper, 'current_date') and dfs_scraper.current_date:
+                dfs_pdf_generator.current_date = dfs_scraper.current_date
+                packager.set_version(dfs_scraper.current_date)
+            
+            console.print(f"[green]Processed:[/green] {len(dfs_charts)} DFS charts")
+
+        # Process FAA Sectional charts
+        if include_faa_sectional:
+            resolved_max_zoom = 9 if (faa_quick and faa_max_zoom is None) else (faa_max_zoom or 12)
+            console.print("\n[bold cyan]Processing FAA Sectional Charts...[/bold cyan]")
+            charts_with_mbtiles = _faa_pipeline(
+                chart_type="sectional",
+                output_dir=output_dir,
+                limit=limit_faa,
+                min_zoom=faa_min_zoom,
+                max_zoom=resolved_max_zoom,
+                verbose=verbose,
+                chart_type_label="Sectional charts",
+            )
+            console.print(
+                f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Sectional charts"
+            )
+
+        # Process FAA Terminal Area charts
+        if include_faa_terminal:
+            resolved_max_zoom = 9 if (faa_quick and faa_max_zoom is None) else (faa_max_zoom or 12)
+            console.print("\n[bold cyan]Processing FAA Terminal Area Charts...[/bold cyan]")
+            charts_with_mbtiles = _faa_pipeline(
+                chart_type="terminal",
+                output_dir=output_dir,
+                limit=limit_faa,
+                min_zoom=faa_min_zoom,
+                max_zoom=resolved_max_zoom,
+                verbose=verbose,
+                chart_type_label="Terminal charts",
+            )
+            console.print(
+                f"[green]Processed:[/green] {len(charts_with_mbtiles)} FAA Terminal Area charts"
+            )
+
+        # Set version if not set (e.g., if only FAA charts were processed)
+        if not packager.version:
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%b%d").upper()
+            packager.set_version(current_date)
+        
+        # Create unified manifest
+        console.print("\n[bold cyan]Creating unified BYOP package...[/bold cyan]")
+        manifest_path = packager.create_manifest()
+        
+        # Display summary
+        packager.display_summary()
+
+        console.print(
+            "\n[bold green]Unified processing completed successfully![/bold green]"
+        )
+        console.print(f"[green]BYOP content pack ready in: {output_dir}[/green]")
+        if manifest_path:
+            console.print(f"[green]Manifest created: {manifest_path}[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error during unified processing: {e}[/red]")
+        import traceback
+        console.print(traceback.format_exc())
+        sys.exit(1)
+
+
 @app.command()
 def info() -> None:
     """Display information about the tool."""
     console.print(
         Panel.fit(
-            "Germany VFR Approach Charts for ForeFlight BYOP\n\n"
-            "This tool scrapes VFR aerodrome charts from the DFS AIP site\n"
-            "and generates PDF files suitable for ForeFlight BYOP content packs.\n\n"
+            "VFR Charts for ForeFlight BYOP\n\n"
+            "This tool scrapes VFR charts from multiple sources:\n"
+            "• DFS AIP (Germany) - PDF charts\n"
+            "• FAA Sectional Charts - mbtiles format\n"
+            "• FAA Terminal Area Charts - mbtiles format\n\n"
             "Commands:\n"
             "• scrape: Extract chart information from DFS AIP\n"
             "• download: Download charts and generate PDFs\n"
-            "• full-pipeline: Run complete workflow\n"
-            "• process-realistic: Process like real user (immediate PDFs)\n"
+            "• full-pipeline: Run complete DFS workflow\n"
+            "• process-realistic: Process DFS like real user\n"
+            "• process-all: Process DFS + FAA into unified package (defaults to all)\n"
+            "• process-faa-sectional: Build only FAA sectional MBTiles\n"
+            "• process-faa-terminal: Build only FAA terminal MBTiles\n"
             "• info: Show this information",
             style="bold blue",
         )

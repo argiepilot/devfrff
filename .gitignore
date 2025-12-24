@@ -217,3 +217,8 @@ AIP Germany*
 
 # mac stuff
 .DS_Store
+
+# Generated chart layers (mbtiles) + packaged outputs
+VFR Charts Package/
+VFR Charts Package.zip
+**/layers/*.mbtiles

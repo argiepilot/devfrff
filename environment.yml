@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.11
   - requests
   - beautifulsoup4
   - lxml
@@ -16,6 +16,12 @@ dependencies:
   - black
   - isort
   - flake8
+  - gdal
+  - rasterio
   - pip
   - pip:
-    - img2pdf 
+    - img2pdf
+    - rio-tiler
+    - morecantile
+    - mercantile
+    - rio-cogeo

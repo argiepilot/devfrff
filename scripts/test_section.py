@@ -16,7 +16,7 @@ console = Console()
 
 def test_e_f_section():
     """Test the E-F section page."""
-    console.print("🔍 Testing E-F section page...")
+    console.print(" Testing E-F section page...")
     
     try:
         # Use the scraper to dynamically get the E-F section
@@ -51,7 +51,7 @@ def test_e_f_section():
         response = scraper._make_request(ef_url)
         response.raise_for_status()
         
-        console.print(f"[green]✓ Successfully fetched E-F section[/green]")
+        console.print(f"[green] Successfully fetched E-F section[/green]")
         console.print(f"Content length: {len(response.text)} characters")
         
         # Parse HTML
