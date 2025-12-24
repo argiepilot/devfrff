@@ -882,37 +882,30 @@ class MBTilesConverter:
                             dataset_bounds[3],  # maxy
                         )
                         
-                        
-                        
-                        try:
-                            pass
-                        except Exception:
-                            pass
-
-                    # Build a filtered tile list: sample at min_zoom to find tiles with data,
-                    # then expand only those tiles across higher zooms. This avoids wasting
-                    # time on large transparent areas.
-                    base_zoom = self.min_zoom
-                    alpha_threshold = 1  # drop tiles that are effectively fully transparent
-                    base_tiles = list(
-                        tms.tiles(
-                            bounds_wgs84[0],
-                            bounds_wgs84[1],
-                            bounds_wgs84[2],
-                            bounds_wgs84[3],
-                            zooms=[base_zoom],
+                        # Build a filtered tile list: sample at min_zoom to find tiles with data,
+                        # then expand only those tiles across higher zooms. This avoids wasting
+                        # time on large transparent areas.
+                        base_zoom = self.min_zoom
+                        alpha_threshold = 1  # drop tiles that are effectively fully transparent
+                        base_tiles = list(
+                            tms.tiles(
+                                bounds_wgs84[0],
+                                bounds_wgs84[1],
+                                bounds_wgs84[2],
+                                bounds_wgs84[3],
+                                zooms=[base_zoom],
+                            )
                         )
-                    )
-                    
-                    valid_base: set[tuple[int, int]] = set()
-                    tile_size = self.tile_size
-                    for base_tile in base_tiles:
-                        try:
-                            _, base_mask = cog.tile(base_tile.x, base_tile.y, base_zoom, tilesize=tile_size)
-                        except Exception as e:
-                            continue
-                        if base_mask.max() > alpha_threshold:
-                            valid_base.add((base_tile.x, base_tile.y))
+                        
+                        valid_base: set[tuple[int, int]] = set()
+                        tile_size = self.tile_size
+                        for base_tile in base_tiles:
+                            try:
+                                _, base_mask = cog.tile(base_tile.x, base_tile.y, base_zoom, tilesize=tile_size)
+                            except Exception as e:
+                                continue
+                            if base_mask.max() > alpha_threshold:
+                                valid_base.add((base_tile.x, base_tile.y))
                     
                     # If no valid base tiles found, try processing all tiles anyway (maybe threshold is too strict)
                     if len(valid_base) == 0 and len(base_tiles) > 0:
@@ -1114,12 +1107,6 @@ class MBTilesConverter:
         except Exception as e:
             console.print(f"[red]Error converting with rio-tiler: {e}[/red]")
             return False
-        finally:
-            if "temp_cog_path" in locals() and temp_cog_path and temp_cog_path.exists():
-                try:
-                    temp_cog_path.unlink()
-                except Exception:
-                    pass
 
     def convert(self, geotiff_path: Path, output_path: Path, verbose: Optional[bool] = None) -> bool:
         """Convert GeoTIFF to mbtiles using available method.
