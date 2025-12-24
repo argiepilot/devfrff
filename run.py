@@ -23,7 +23,15 @@ if __name__ == "__main__":
     ]
     
     # Check if first argument is a valid command
-    if len(sys.argv) == 1 or (len(sys.argv) > 1 and sys.argv[1] not in valid_commands):
+    # Skip insertion if:
+    # 1. No arguments provided (len(sys.argv) == 1)
+    # 2. First argument is not a valid command AND it's not a flag (doesn't start with '-')
+    # This prevents breaking flags like --help, --version, etc.
+    if len(sys.argv) == 1 or (
+        len(sys.argv) > 1
+        and sys.argv[1] not in valid_commands
+        and not sys.argv[1].startswith("-")
+    ):
         # No valid command specified: default to process-all, but prompt interactively
         # (y/n questions defaulting to Yes)
         sys.argv.insert(1, "process-all")

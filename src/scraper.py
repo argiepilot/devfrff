@@ -802,7 +802,7 @@ class AIPScraper:
                     # Process each chart immediately (like a real user)
                     for chart_idx, chart in enumerate(charts, 1):
                         console.print(
-                            f"  📄 Processing chart {chart_idx}/{len(charts)}: {chart['chart_name']}"
+                            f"  Processing chart {chart_idx}/{len(charts)}: {chart['chart_name']}"
                         )
 
                         # Build referrer URL
@@ -841,7 +841,7 @@ class AIPScraper:
                         pause_min = airport_pause * 0.6
                         pause_max = airport_pause * 1.4
                         random_pause = random.uniform(pause_min, pause_max)
-                        console.print(f"[yellow]⏸  Pausing {random_pause:.1f}s before next airport...[/yellow]")
+                        console.print(f"[yellow]Pausing {random_pause:.1f}s before next airport...[/yellow]")
                         time.sleep(random_pause)
 
                     # Check if we've hit the limit
@@ -863,7 +863,7 @@ class AIPScraper:
                 pause_min = section_pause * 0.6
                 pause_max = section_pause * 1.4
                 random_section_pause = random.uniform(pause_min, pause_max)
-                console.print(f"[yellow]⏸  Pausing {random_section_pause:.1f}s before next section...[/yellow]")
+                console.print(f"[yellow]Pausing {random_section_pause:.1f}s before next section...[/yellow]")
                 time.sleep(random_section_pause)
 
             # Break out of section loop if limit reached
