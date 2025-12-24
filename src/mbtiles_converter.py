@@ -37,51 +37,6 @@ except Exception:
 
 console = Console()
 
-# #region agent log
-LOG_PATH = Path("/Users/wolf/dev/devfrff/.cursor/debug.log")
-
-def _log_debug(location: str, message: str, data: dict, hypothesis_id: str = "A"):
-    """Write debug log entry."""
-    try:
-        log_entry = {
-            "sessionId": "debug-session",
-            "runId": "run1",
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "message": message,
-            "data": data,
-            "timestamp": int(os.path.getmtime(__file__) * 1000) if os.path.exists(__file__) else 0
-        }
-        with open(LOG_PATH, "a") as f:
-            f.write(json.dumps(log_entry) + "\n")
-    except Exception:
-        pass
-# #endregion
-
-# #region agent log
-def _log_runtime_event(
-    location: str,
-    message: str,
-    data: dict,
-    hypothesis_id: str,
-    run_id: str = "run_mbtiles_black1",
-):
-    """Append a runtime log entry for debug-mode analysis."""
-    try:
-        log_entry = {
-            "sessionId": "debug-session",
-            "runId": run_id,
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "message": message,
-            "data": data,
-            "timestamp": int(time.time() * 1000),
-        }
-        with open(LOG_PATH, "a") as f:
-            f.write(json.dumps(log_entry) + "\n")
-    except Exception:
-        pass
-# #endregion
 
 
 # Worker globals for parallel tile processing
@@ -93,11 +48,25 @@ _worker_logged = False
 def _worker_init(cog_path: str, tms_id: str) -> None:
     """Initializer for worker processes to open COGReader once per process."""
     global _worker_cog_reader, _worker_tms
+    
+    # Suppress warnings in worker processes
+    import warnings
+    warnings.filterwarnings("ignore", module="rio_tiler.reader")
+    try:
+        from rio_tiler.errors import NodataShadowWarning
+        warnings.filterwarnings("ignore", category=NodataShadowWarning)
+    except Exception:
+        warnings.filterwarnings(
+            "ignore",
+            category=UserWarning,
+            message=".*NodataShadowWarning.*",
+        )
+    
     _worker_tms = morecantile.tms.get(tms_id)
     _worker_cog_reader = COGReader(cog_path, tms=_worker_tms)
 
 
-def _worker_process_tile(args: Tuple[int, int, int, int]) -> Tuple[str, int, int, int, Optional[bytes], bool, Optional[str]]:
+def _worker_process_tile(args: Tuple[int, int, int, int, int]) -> Tuple[str, int, int, int, Optional[bytes], bool, Optional[str]]:
     """Process a single tile in a worker process.
 
     Returns:
@@ -109,39 +78,14 @@ def _worker_process_tile(args: Tuple[int, int, int, int]) -> Tuple[str, int, int
     if _worker_cog_reader is None:
         return ("error", -1, -1, -1, None, False, "COGReader not initialized")
 
-    x, y, z, alpha_threshold = args
+    x, y, z, alpha_threshold, tile_size = args
     try:
-        data, mask = _worker_cog_reader.tile(x, y, z, tilesize=256)
+        data, mask = _worker_cog_reader.tile(x, y, z, tilesize=tile_size)
     except Exception as e:  # pragma: no cover - defensive
         return ("error", z, x, y, None, False, str(e))
 
     global _worker_logged
     if not _worker_logged:
-        try:
-            log_entry = {
-                "sessionId": "debug-session",
-                "runId": "run1",
-                "hypothesisId": "A",
-                "location": "mbtiles_converter.py:_worker_process_tile",
-                "message": "worker_first_tile_sample",
-                "data": {
-                    "z": z,
-                    "x": x,
-                    "y": y,
-                    "data_shape": list(data.shape),
-                    "data_dtype": str(data.dtype),
-                    "data_min": float(np.min(data)) if data.size else None,
-                    "data_max": float(np.max(data)) if data.size else None,
-                    "mask_shape": list(mask.shape),
-                    "mask_min": int(mask.min()) if mask.size else None,
-                    "mask_max": int(mask.max()) if mask.size else None,
-                },
-                "timestamp": int(time.time() * 1000),
-            }
-            with open("/Users/wolf/dev/devfrff/.cursor/debug.log", "a") as f:
-                f.write(json.dumps(log_entry) + "\n")
-        except Exception:
-            pass
         _worker_logged = True
 
     if mask.max() <= alpha_threshold:
@@ -173,15 +117,18 @@ def _worker_process_tile(args: Tuple[int, int, int, int]) -> Tuple[str, int, int
 class MBTilesConverter:
     """Convert GeoTIFF files to mbtiles format."""
 
-    def __init__(self, min_zoom: int = 6, max_zoom: int = 13):
+    def __init__(self, min_zoom: int = 6, max_zoom: int = 12, verbose: bool = False):
         """Initialize the mbtiles converter.
 
         Args:
             min_zoom: Minimum zoom level for tiles (default: 6, shows when zoomed out)
-            max_zoom: Maximum zoom level for tiles (default: 13, reasonable detail)
+            max_zoom: Maximum zoom level for tiles (default: 12, reasonable detail)
+            verbose: If True, show detailed progress output; if False, show progress bar with status
         """
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
+        self.verbose = verbose
+        self.tile_size = 512  # Use 512x512 tiles for better performance
 
     def _check_gdal_available(self) -> bool:
         """Check if GDAL is available on the system.
@@ -251,19 +198,7 @@ class MBTilesConverter:
         Returns:
             True if successful, False otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:convert_with_gdal2mbtiles:entry",
-            "Starting gdal2mbtiles conversion",
-            {
-                "geotiff_path": str(geotiff_path),
-                "output_path": str(output_path),
-                "min_zoom": self.min_zoom,
-                "max_zoom": self.max_zoom
-            },
-            "G"
-        )
-        # #endregion
+        
 
         try:
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -276,33 +211,13 @@ class MBTilesConverter:
                 str(output_path),
             ]
 
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_gdal2mbtiles:cmd",
-                "Running gdal2mbtiles command",
-                {"cmd": " ".join(cmd)},
-                "G"
-            )
-            # #endregion
+            
 
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=3600
             )
 
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_gdal2mbtiles:result",
-                "gdal2mbtiles command completed",
-                {
-                    "returncode": result.returncode,
-                    "stdout_length": len(result.stdout),
-                    "stderr_length": len(result.stderr),
-                    "output_exists": output_path.exists(),
-                    "output_size": output_path.stat().st_size if output_path.exists() else 0
-                },
-                "G"
-            )
-            # #endregion
+            
 
             if result.returncode == 0:
                 return True
@@ -314,29 +229,15 @@ class MBTilesConverter:
 
         except subprocess.TimeoutExpired:
             console.print("[red]Conversion timed out[/red]")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_gdal2mbtiles:error",
-                "Conversion timed out",
-                {},
-                "G"
-            )
-            # #endregion
+            
             return False
         except Exception as e:
             console.print(f"[red]Error converting with gdal2mbtiles: {e}[/red]")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_gdal2mbtiles:error",
-                "Exception during conversion",
-                {"error": str(e), "error_type": type(e).__name__},
-                "G"
-            )
-            # #endregion
+            
             return False
 
     def _check_and_convert_paletted_geotiff(
-        self, geotiff_path: Path, temp_dir: Path
+        self, geotiff_path: Path, temp_dir: Path, verbose: bool = False
     ) -> Optional[Path]:
         """Check if GeoTIFF is paletted and convert to RGBA if needed.
 
@@ -347,14 +248,7 @@ class MBTilesConverter:
         Returns:
             Path to RGBA GeoTIFF if conversion needed, original path otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:_check_and_convert_paletted_geotiff:entry",
-            "Checking if GeoTIFF is paletted",
-            {"geotiff_path": str(geotiff_path)},
-            "K"
-        )
-        # #endregion
+        
 
         try:
             from osgeo import gdal
@@ -367,14 +261,7 @@ class MBTilesConverter:
             band = src_ds.GetRasterBand(1)
             color_table = band.GetColorTable()
 
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_check_and_convert_paletted_geotiff:check",
-                "Checked color table",
-                {"has_color_table": color_table is not None},
-                "K"
-            )
-            # #endregion
+            
 
             src_ds = None
             band = None
@@ -382,7 +269,8 @@ class MBTilesConverter:
             if color_table is not None:
                 # Use VRT format instead of full RGBA conversion (much faster!)
                 # VRT is a virtual format that expands on-the-fly without creating a huge file
-                console.print("[cyan]Creating VRT for paletted GeoTIFF (expanding to RGBA on-the-fly)...[/cyan]")
+                if verbose:
+                    console.print("[cyan]Creating VRT for paletted GeoTIFF (expanding to RGBA on-the-fly)...[/cyan]")
                 vrt_path = temp_dir / f"{geotiff_path.stem}_rgba.vrt"
 
                 cmd = [
@@ -397,55 +285,27 @@ class MBTilesConverter:
                     str(vrt_path),
                 ]
 
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:_check_and_convert_paletted_geotiff:convert",
-                    "Converting paletted to VRT (RGBA)",
-                    {"cmd": " ".join(cmd), "vrt_path": str(vrt_path)},
-                    "K"
-                )
-                # #endregion
+                
 
                 result = subprocess.run(
                     cmd, capture_output=True, text=True, timeout=60
                 )
 
                 if result.returncode == 0 and vrt_path.exists():
-                    # #region agent log
-                    _log_debug(
-                        "mbtiles_converter.py:_check_and_convert_paletted_geotiff:success",
-                        "Successfully created VRT",
-                        {"vrt_path": str(vrt_path), "vrt_size": vrt_path.stat().st_size},
-                        "K"
-                    )
-                    # #endregion
+                    
                     return vrt_path
                 else:
                     console.print(
                         f"[yellow]Warning: Failed to create VRT: {result.stderr}[/yellow]"
                     )
-                    # #region agent log
-                    _log_debug(
-                        "mbtiles_converter.py:_check_and_convert_paletted_geotiff:error",
-                        "Failed to create VRT",
-                        {"stderr": result.stderr},
-                        "K"
-                    )
-                    # #endregion
+                    
                     return None
 
             return geotiff_path  # Not paletted, use original
 
         except Exception as e:
             console.print(f"[yellow]Warning: Could not check GeoTIFF format: {e}[/yellow]")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_check_and_convert_paletted_geotiff:error",
-                "Exception checking GeoTIFF",
-                {"error": str(e), "error_type": type(e).__name__},
-                "K"
-            )
-            # #endregion
+            
             return geotiff_path  # Assume not paletted, use original
 
     def _inspect_geotiff_quick(self, geotiff_path: Path) -> None:
@@ -453,27 +313,13 @@ class MBTilesConverter:
         try:
             from osgeo import gdal
         except Exception as e:  # pragma: no cover - defensive
-            # #region agent log
-            _log_runtime_event(
-                "mbtiles_converter.py:_inspect_geotiff_quick:error",
-                "GDAL not available for inspection",
-                {"error": str(e), "geotiff_path": str(geotiff_path)},
-                hypothesis_id="PAL",
-            )
-            # #endregion
+            
             return
 
         try:
             ds = gdal.Open(str(geotiff_path))
             if ds is None:
-                # #region agent log
-                _log_runtime_event(
-                    "mbtiles_converter.py:_inspect_geotiff_quick:error",
-                    "GDAL could not open GeoTIFF",
-                    {"geotiff_path": str(geotiff_path)},
-                    hypothesis_id="PAL",
-                )
-                # #endregion
+                
                 return
 
             band_count = ds.RasterCount
@@ -492,29 +338,8 @@ class MBTilesConverter:
                         "stats": stats if stats else None,
                     }
                 )
-            # #region agent log
-            _log_runtime_event(
-                "mbtiles_converter.py:_inspect_geotiff_quick:info",
-                "GeoTIFF quick inspection",
-                {
-                    "geotiff_path": str(geotiff_path),
-                    "bands": band_count,
-                    "geotransform": list(ds.GetGeoTransform()) if ds.GetGeoTransform() else None,
-                    "projection_snippet": ds.GetProjection()[:80] if ds.GetProjection() else None,
-                    "band_summaries": band_summaries,
-                },
-                hypothesis_id="PAL",
-            )
-            # #endregion
         except Exception as e:  # pragma: no cover - defensive
-            # #region agent log
-            _log_runtime_event(
-                "mbtiles_converter.py:_inspect_geotiff_quick:exception",
-                "Exception during GeoTIFF inspection",
-                {"error": str(e), "geotiff_path": str(geotiff_path)},
-                hypothesis_id="PAL",
-            )
-            # #endregion
+            return False
 
     def convert_with_gdal2tiles(
         self, geotiff_path: Path, output_path: Path
@@ -528,19 +353,7 @@ class MBTilesConverter:
         Returns:
             True if successful, False otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:convert_with_gdal2tiles:entry",
-            "Starting gdal2tiles conversion",
-            {
-                "geotiff_path": str(geotiff_path),
-                "output_path": str(output_path),
-                "min_zoom": self.min_zoom,
-                "max_zoom": self.max_zoom
-            },
-            "I"
-        )
-        # #endregion
+        
 
         try:
             import shutil
@@ -551,14 +364,7 @@ class MBTilesConverter:
             # Find gdal2tiles.py
             gdal2tiles = shutil.which("gdal2tiles.py") or shutil.which("gdal2tiles")
             if not gdal2tiles:
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_with_gdal2tiles:error",
-                    "gdal2tiles.py not found",
-                    {},
-                    "I"
-                )
-                # #endregion
+                
                 return False
 
             # Create temporary directory for tiles and converted GeoTIFF
@@ -570,27 +376,13 @@ class MBTilesConverter:
 
                 # Check if GeoTIFF is paletted and convert if needed
                 input_geotiff = self._check_and_convert_paletted_geotiff(
-                    geotiff_path, temp_geotiff_dir
+                    geotiff_path, temp_geotiff_dir, verbose=self.verbose
                 )
                 if input_geotiff is None:
-                    # #region agent log
-                    _log_debug(
-                        "mbtiles_converter.py:convert_with_gdal2tiles:error",
-                        "Failed to prepare GeoTIFF",
-                        {},
-                        "I"
-                    )
-                    # #endregion
+                    
                     return False
 
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_with_gdal2tiles:prepared",
-                    "GeoTIFF prepared for tiling",
-                    {"input_geotiff": str(input_geotiff), "is_converted": input_geotiff != geotiff_path},
-                    "I"
-                )
-                # #endregion
+                
 
                 # Run gdal2tiles.py to create tiles at multiple zoom levels
                 effective_min_zoom = max(self.min_zoom, 6)
@@ -612,18 +404,7 @@ class MBTilesConverter:
                     str(temp_tiles_path),
                 ]
 
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_with_gdal2tiles:cmd",
-                    "Running gdal2tiles command",
-                    {
-                        "cmd": " ".join(cmd),
-                        "effective_min_zoom": effective_min_zoom,
-                        "effective_max_zoom": effective_max_zoom
-                    },
-                    "I"
-                )
-                # #endregion
+                
 
                 # Run with timeout and capture output
                 # Use longer timeout for large files (up to 2 hours for very large charts)
@@ -639,19 +420,7 @@ class MBTilesConverter:
                         if line.strip():
                             console.print(f"[dim]{line}[/dim]")
 
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_with_gdal2tiles:gdal2tiles_result",
-                    "gdal2tiles command completed",
-                    {
-                        "returncode": result.returncode,
-                        "stdout_length": len(result.stdout),
-                        "stderr_length": len(result.stderr),
-                        "stderr_preview": result.stderr[:200] if result.stderr else None,
-                    },
-                    "I"
-                )
-                # #endregion
+                
 
                 if result.returncode != 0:
                     console.print(
@@ -661,31 +430,14 @@ class MBTilesConverter:
 
                 # Convert tile directory to mbtiles
                 if self._tiles_dir_to_mbtiles(temp_tiles_path, output_path, geotiff_path):
-                    # #region agent log
-                    _log_debug(
-                        "mbtiles_converter.py:convert_with_gdal2tiles:success",
-                        "Successfully converted tiles to mbtiles",
-                        {
-                            "output_exists": output_path.exists(),
-                            "output_size": output_path.stat().st_size if output_path.exists() else 0
-                        },
-                        "I"
-                    )
-                    # #endregion
+                    
                     return True
                 else:
                     return False
 
         except Exception as e:
             console.print(f"[red]Error converting with gdal2tiles: {e}[/red]")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_gdal2tiles:error",
-                "Exception during conversion",
-                {"error": str(e), "error_type": type(e).__name__},
-                "I"
-            )
-            # #endregion
+            
             return False
 
     def _tiles_dir_to_mbtiles(
@@ -703,18 +455,7 @@ class MBTilesConverter:
         Returns:
             True if successful, False otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:_tiles_dir_to_mbtiles:entry",
-            "Converting tile directory to mbtiles",
-            {
-                "tiles_dir": str(tiles_dir),
-                "output_path": str(output_path),
-                "tiles_dir_exists": tiles_dir.exists()
-            },
-            "J"
-        )
-        # #endregion
+        
 
         try:
             from osgeo import gdal, osr
@@ -729,11 +470,41 @@ class MBTilesConverter:
             width = src_ds.RasterXSize
             height = src_ds.RasterYSize
 
-            # Calculate bounds
+            # Calculate bounds in source projection
             min_x = geotransform[0]
             max_y = geotransform[3]
             max_x = min_x + width * geotransform[1]
             min_y = max_y + height * geotransform[5]
+
+            # CRITICAL FIX: Convert bounds to WGS84 (lat/lon) for ForeFlight
+            # MBTiles bounds must be in WGS84 format: min_lon, min_lat, max_lon, max_lat
+            src_srs = osr.SpatialReference()
+            src_srs.ImportFromWkt(projection)
+            tgt_srs = osr.SpatialReference()
+            tgt_srs.ImportFromEPSG(4326)  # WGS84
+            
+            transform = osr.CoordinateTransformation(src_srs, tgt_srs)
+            
+            # Transform corners to WGS84
+            corners = [
+                (min_x, min_y),  # bottom-left
+                (max_x, min_y),  # bottom-right
+                (max_x, max_y),  # top-right
+                (min_x, max_y),  # top-left
+            ]
+            
+            wgs84_corners = []
+            for x, y in corners:
+                lon, lat, _ = transform.TransformPoint(x, y)
+                wgs84_corners.append((lon, lat))
+            
+            # Get min/max lon and lat
+            min_lon = min(c[0] for c in wgs84_corners)
+            max_lon = max(c[0] for c in wgs84_corners)
+            min_lat = min(c[1] for c in wgs84_corners)
+            max_lat = max(c[1] for c in wgs84_corners)
+            
+            
 
             # Create mbtiles database
             if output_path.exists():
@@ -769,14 +540,14 @@ class MBTilesConverter:
             )
 
             # Insert metadata
-            chart_name = output_path.stem.replace("terminal_", "").replace("sectional_", "")
+            chart_name = output_path.stem.replace("T_", "").replace("S_", "").replace("terminal_", "").replace("sectional_", "")
             metadata = [
                 ("name", chart_name),
                 ("type", "overlay"),
                 ("version", "1.1"),
                 ("description", chart_name),
                 ("format", "jpeg" if compress_jpeg else "png"),
-                ("bounds", f"{min_x},{min_y},{max_x},{max_y}"),
+                ("bounds", f"{min_lon},{min_lat},{max_lon},{max_lat}"),  # WGS84 bounds
                 ("minzoom", str(self.min_zoom)),
                 ("maxzoom", str(self.max_zoom)),
             ]
@@ -849,18 +620,7 @@ class MBTilesConverter:
                                         continue  # skip inserting this tile
 
                                     if not alpha_logged:
-                                        # #region agent log
-                                        _log_debug(
-                                            "mbtiles_converter.py:_tiles_dir_to_mbtiles:alpha_detected",
-                                            "Source tiles contain alpha; keeping PNG to preserve transparency",
-                                            {
-                                                "zoom": zoom_level,
-                                                "tile_column": tile_column,
-                                                "tile_row": tile_row
-                                            },
-                                            "BG"  # hypothesis black gap
-                                        )
-                                        # #endregion
+                                        
                                         alpha_logged = True
                                     # keep PNG to preserve transparency
                                     tile_data = raw_data
@@ -892,39 +652,21 @@ class MBTilesConverter:
 
             src_ds = None
 
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_tiles_dir_to_mbtiles:success",
-                "Successfully converted tiles to mbtiles",
-                {
-                    "tile_count": tile_count,
-                    "output_size": output_path.stat().st_size,
-                    "alpha_by_zoom": alpha_by_zoom,
-                    "tile_count_by_zoom": tile_count_by_zoom,
-                    "avg_size_by_zoom": {
-                        z: size_sum_by_zoom[z] // size_count_by_zoom[z]
-                        for z in size_sum_by_zoom
-                    },
-                    "sample_dims_by_zoom": sample_dims_by_zoom,
-                    "dropped_transparent_by_zoom": dropped_transparent_by_zoom
-                },
-                "J"
-            )
-            # #endregion
+            
 
             console.print(f"[cyan]Inserted {tile_count} tiles into mbtiles[/cyan]")
-            return tile_count > 0
+            
+            
+            
+            if tile_count == 0:
+                console.print("[red]ERROR: No tiles found in tile directory![/red]")
+                return False
+            
+            return True
 
         except Exception as e:
             console.print(f"[red]Error converting tiles to mbtiles: {e}[/red]")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_tiles_dir_to_mbtiles:error",
-                "Exception during tile conversion",
-                {"error": str(e), "error_type": type(e).__name__},
-                "J"
-            )
-            # #endregion
+            
             return False
 
     def convert_with_gdal_translate(
@@ -998,19 +740,7 @@ class MBTilesConverter:
         Returns:
             True if successful, False otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:convert_with_python_gdal:entry",
-            "Starting Python GDAL conversion",
-            {
-                "geotiff_path": str(geotiff_path),
-                "output_path": str(output_path),
-                "min_zoom": self.min_zoom,
-                "max_zoom": self.max_zoom
-            },
-            "E"
-        )
-        # #endregion
+        
 
         try:
             from osgeo import gdal
@@ -1021,82 +751,31 @@ class MBTilesConverter:
             src_ds = gdal.Open(str(geotiff_path))
             if src_ds is None:
                 console.print(f"[red]Failed to open GeoTIFF: {geotiff_path}[/red]")
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_with_python_gdal:error",
-                    "Failed to open GeoTIFF",
-                    {"geotiff_path": str(geotiff_path)},
-                    "E"
-                )
-                # #endregion
+                
                 return False
 
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_python_gdal:geotiff_info",
-                "GeoTIFF opened successfully",
-                {
-                    "width": src_ds.RasterXSize,
-                    "height": src_ds.RasterYSize,
-                    "bands": src_ds.RasterCount,
-                    "projection": src_ds.GetProjection()[:100] if src_ds.GetProjection() else None
-                },
-                "E"
-            )
-            # #endregion
+            
 
             # Create mbtiles driver
             driver = gdal.GetDriverByName("MBTiles")
             if driver is None:
                 console.print("[red]MBTiles driver not available[/red]")
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_with_python_gdal:error",
-                    "MBTiles driver not available",
-                    {},
-                    "E"
-                )
-                # #endregion
+                
                 return False
 
             # GDAL MBTiles driver does NOT support ZOOM_LEVEL option (as confirmed by warning)
             # We need to use a different approach - skip CreateCopy and use gdal2tiles instead
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_python_gdal:skip",
-                "Skipping CreateCopy - MBTiles driver doesn't support ZOOM_LEVEL",
-                {"min_zoom": self.min_zoom, "max_zoom": self.max_zoom},
-                "E"
-            )
-            # #endregion
+            
             
             # Return False to fall back to gdal2tiles method
             return False
 
             if dst_ds is None:
                 console.print(f"[red]Failed to create mbtiles: {output_path}[/red]")
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_with_python_gdal:error",
-                    "CreateCopy returned None",
-                    {"output_path": str(output_path)},
-                    "E"
-                )
-                # #endregion
+                
                 return False
 
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_python_gdal:after_create",
-                "After CreateCopy",
-                {
-                    "output_path": str(output_path),
-                    "output_exists": output_path.exists(),
-                    "output_size": output_path.stat().st_size if output_path.exists() else 0
-                },
-                "E"
-            )
-            # #endregion
+            
 
             # Clean up
             dst_ds = None
@@ -1108,45 +787,20 @@ class MBTilesConverter:
             console.print(
                 "[yellow]Python GDAL bindings not available, trying alternative methods[/yellow]"
             )
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_python_gdal:error",
-                "ImportError - GDAL bindings not available",
-                {},
-                "E"
-            )
-            # #endregion
+            
             return False
         except Exception as e:
             console.print(f"[red]Error converting with Python GDAL: {e}[/red]")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert_with_python_gdal:error",
-                "Exception during conversion",
-                {"error": str(e), "error_type": type(e).__name__},
-                "E"
-            )
-            # #endregion
+            
             return False
 
-    def _convert_with_rio_tiler(self, geotiff_path: Path, output_path: Path) -> bool:
+    def _convert_with_rio_tiler(self, geotiff_path: Path, output_path: Path, verbose: bool = False) -> bool:
         """Convert GeoTIFF to mbtiles using rio-tiler with a temp COG (overviews) and progress."""
-        _log_debug(
-            "mbtiles_converter.py:_convert_with_rio_tiler:entry",
-            "Starting rio-tiler conversion",
-            {
-                "geotiff_path": str(geotiff_path),
-                "output_path": str(output_path),
-                "min_zoom": self.min_zoom,
-                "max_zoom": self.max_zoom,
-            },
-            "RT",
-        )
         # Quick inspection to catch palette/scale issues before conversion
         self._inspect_geotiff_quick(geotiff_path)
 
         try:
-            # Suppress noisy warnings from GDAL/rio-cogeo that don't affect output
+            # Suppress noisy warnings from GDAL/rio-cogeo/rio-tiler that don't affect output
             with warnings.catch_warnings():
                 # Future GDAL default exception warning
                 warnings.filterwarnings(
@@ -1165,6 +819,22 @@ class MBTilesConverter:
                         category=UserWarning,
                         message=".*NodataAlphaMaskWarning.*",
                     )
+                # rio-tiler NodataShadowWarning
+                try:
+                    from rio_tiler.errors import NodataShadowWarning
+                    warnings.filterwarnings("ignore", category=NodataShadowWarning)
+                except Exception:
+                    # Fallback on text match if class import fails
+                    warnings.filterwarnings(
+                        "ignore",
+                        category=UserWarning,
+                        message=".*NodataShadowWarning.*",
+                    )
+                # Also suppress by module to catch any rio_tiler warnings
+                warnings.filterwarnings(
+                    "ignore",
+                    module="rio_tiler.reader",
+                )
 
                 tms = morecantile.tms.get("WebMercatorQuad")
                 if output_path.exists():
@@ -1173,27 +843,17 @@ class MBTilesConverter:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_dir_path = Path(temp_dir)
                     prep_path = self._check_and_convert_paletted_geotiff(
-                        geotiff_path, temp_dir_path
+                        geotiff_path, temp_dir_path, verbose=verbose
                     )
                     source_for_cog = prep_path or geotiff_path
-                    # #region agent log
-                    _log_runtime_event(
-                        "mbtiles_converter.py:_convert_with_rio_tiler:palette_prepared",
-                        "Palette handling decision",
-                        {
-                            "original": str(geotiff_path),
-                            "prepared": str(source_for_cog),
-                            "used_converted": source_for_cog != geotiff_path,
-                        },
-                        hypothesis_id="PAL",
-                    )
-                    # #endregion
+                    
 
                     temp_cog_path = temp_dir_path / "temp_cog.tif"
 
                     profile = cog_profiles.get("deflate")
-                    # Optional: enforce block sizes if desired
-                    profile.update({"blockxsize": 256, "blockysize": 256})
+                    # Match block sizes to tile size for better performance
+                    tile_size = self.tile_size
+                    profile.update({"blockxsize": tile_size, "blockysize": tile_size})
                     cog_translate(
                         str(source_for_cog),
                         str(temp_cog_path),
@@ -1203,35 +863,29 @@ class MBTilesConverter:
                         overview_resampling="average",
                         quiet=True,
                     )
-                    # #region agent log
-                    _log_runtime_event(
-                        "mbtiles_converter.py:_convert_with_rio_tiler:cog_created",
-                        "Temp COG created",
-                        {
-                            "temp_cog_path": str(temp_cog_path),
-                            "temp_cog_exists": temp_cog_path.exists(),
-                            "temp_cog_size": temp_cog_path.stat().st_size if temp_cog_path.exists() else 0,
-                        },
-                        hypothesis_id="PAL",
-                    )
-                    # #endregion
+                    
 
                     with COGReader(str(temp_cog_path), tms=tms) as cog:
-                        bounds_wgs84 = cog.bounds
+                        # Get bounds in dataset CRS
+                        dataset_bounds = cog.bounds
+                        dataset_crs = cog.dataset.crs
+                        
+                        # CRITICAL FIX: Convert bounds to WGS84 (lat/lon) for ForeFlight
+                        # cog.bounds returns bounds in the dataset's native CRS, not necessarily WGS84
+                        from rasterio.warp import transform_bounds
+                        bounds_wgs84 = transform_bounds(
+                            dataset_crs,
+                            "EPSG:4326",  # WGS84
+                            dataset_bounds[0],  # minx
+                            dataset_bounds[1],  # miny
+                            dataset_bounds[2],  # maxx
+                            dataset_bounds[3],  # maxy
+                        )
+                        
+                        
+                        
                         try:
-                            # #region agent log
-                            _log_runtime_event(
-                                "mbtiles_converter.py:_convert_with_rio_tiler:cog_info",
-                                "COGReader opened",
-                                {
-                                    "dataset_count": cog.dataset.count,
-                                    "dataset_dtypes": list(cog.dataset.dtypes),
-                                    "colorinterp": [str(ci) for ci in cog.dataset.colorinterp],
-                                    "crs": str(cog.dataset.crs),
-                                },
-                                hypothesis_id="PAL",
-                            )
-                            # #endregion
+                            pass
                         except Exception:
                             pass
 
@@ -1249,56 +903,22 @@ class MBTilesConverter:
                             zooms=[base_zoom],
                         )
                     )
+                    
                     valid_base: set[tuple[int, int]] = set()
-                    if base_tiles:
-                        sample_tile = base_tiles[len(base_tiles) // 2]
-                        try:
-                            # #region agent log
-                            sample_data, sample_mask = cog.tile(sample_tile.x, sample_tile.y, base_zoom, tilesize=256)
-                            _log_runtime_event(
-                                "mbtiles_converter.py:_convert_with_rio_tiler:sample_tile",
-                                "Sample tile stats",
-                                {
-                                    "x": sample_tile.x,
-                                    "y": sample_tile.y,
-                                    "z": base_zoom,
-                                    "shape": list(sample_data.shape),
-                                    "dtype": str(sample_data.dtype),
-                                    "data_min": float(np.min(sample_data)) if sample_data.size else None,
-                                    "data_max": float(np.max(sample_data)) if sample_data.size else None,
-                                    "mask_min": int(sample_mask.min()) if sample_mask.size else None,
-                                    "mask_max": int(sample_mask.max()) if sample_mask.size else None,
-                                },
-                                hypothesis_id="PAL",
-                            )
-                            # #endregion
-                        except Exception as e:
-                            # #region agent log
-                            _log_runtime_event(
-                                "mbtiles_converter.py:_convert_with_rio_tiler:sample_tile_error",
-                                "Sample tile read failed",
-                                {
-                                    "error": str(e),
-                                    "x": sample_tile.x,
-                                    "y": sample_tile.y,
-                                    "z": base_zoom,
-                                },
-                                hypothesis_id="PAL",
-                            )
-                            # #endregion
+                    tile_size = self.tile_size
                     for base_tile in base_tiles:
                         try:
-                            _, base_mask = cog.tile(base_tile.x, base_tile.y, base_zoom, tilesize=256)
+                            _, base_mask = cog.tile(base_tile.x, base_tile.y, base_zoom, tilesize=tile_size)
                         except Exception as e:
-                            _log_debug(
-                                "mbtiles_converter.py:_convert_with_rio_tiler:base_tile_error",
-                                "Error reading base tile",
-                                {"x": base_tile.x, "y": base_tile.y, "z": base_zoom, "error": str(e)},
-                                "RT",
-                            )
                             continue
                         if base_mask.max() > alpha_threshold:
                             valid_base.add((base_tile.x, base_tile.y))
+                    
+                    # If no valid base tiles found, try processing all tiles anyway (maybe threshold is too strict)
+                    if len(valid_base) == 0 and len(base_tiles) > 0:
+                        if verbose:
+                            console.print("[yellow]Warning: No tiles passed alpha threshold, processing all tiles anyway[/yellow]")
+                        valid_base = {(t.x, t.y) for t in base_tiles}
 
                     tiles_list = []
                     for z in range(self.min_zoom, self.max_zoom + 1):
@@ -1355,18 +975,42 @@ class MBTilesConverter:
                     alpha_logged = False
                     commit_interval = 500
 
-                    # Tile-level spinner only (no bar) to reduce noise; outer bar remains
-                    with Progress(
-                        SpinnerColumn(),
-                        TextColumn("[progress.description]{task.description}"),
-                        console=console,
-                    ) as progress:
-                        task = progress.add_task(
-                            f"Converting {geotiff_path.name} tiles...", total=len(tiles_list)
+                    # Tile-level progress display
+                    if verbose:
+                        # Verbose: spinner with description
+                        progress_display = Progress(
+                            SpinnerColumn(),
+                            TextColumn("[progress.description]{task.description}"),
+                            console=console,
                         )
+                    else:
+                        # Non-verbose: no display (outer progress bar shows status)
+                        # Create a no-op progress object
+                        class NoOpProgress:
+                            def __enter__(self):
+                                return self
+                            def __exit__(self, *args):
+                                pass
+                            def add_task(self, *args, **kwargs):
+                                return None
+                            def advance(self, *args):
+                                pass
+                        progress_display = NoOpProgress()
+                    
+                    with progress_display:
+                        if verbose:
+                            task = progress_display.add_task(
+                                f"Converting {geotiff_path.name} tiles...", total=len(tiles_list)
+                            )
+                        else:
+                            task = None
+                        
+                        progress = progress_display
 
                         workers = max(2, os.cpu_count()-2 or 1)
-                        console.print(f"Using {workers} cores")
+                        if verbose:
+                            console.print(f"Using {workers} cores")
+                        tile_size = self.tile_size
                         with concurrent.futures.ProcessPoolExecutor(
                             max_workers=workers,
                             initializer=_worker_init,
@@ -1374,50 +1018,42 @@ class MBTilesConverter:
                         ) as executor:
                             for result in executor.map(
                                 _worker_process_tile,
-                                ((x, y, z, alpha_threshold) for (x, y, z) in tiles_list),
+                                ((x, y, z, alpha_threshold, tile_size) for (x, y, z) in tiles_list),
                                 chunksize=32,
                             ):
                                 if result is None:
-                                    progress.advance(task)
+                                    if verbose and task is not None:
+                                        progress.advance(task)
                                     continue
 
                                 status, z, x, y, tile_data_bytes, has_alpha, err = result
 
                                 if status == "error":
-                                    _log_debug(
-                                        "mbtiles_converter.py:_convert_with_rio_tiler:tile_error",
-                                        "Error reading tile",
-                                        {"x": x, "y": y, "z": z, "error": err},
-                                        "RT",
-                                    )
-                                    progress.advance(task)
+                                    if verbose and task is not None:
+                                        progress.advance(task)
                                     continue
 
                                 if status == "dropped":
                                     dropped_transparent_by_zoom[z] = (
                                         dropped_transparent_by_zoom.get(z, 0) + 1
                                     )
-                                    progress.advance(task)
+                                    if verbose and task is not None:
+                                        progress.advance(task)
                                     continue
 
                                 tile_count_by_zoom[z] = tile_count_by_zoom.get(z, 0) + 1
                                 if has_alpha:
                                     alpha_by_zoom[z] = alpha_by_zoom.get(z, 0) + 1
                                     if not alpha_logged:
-                                        _log_debug(
-                                            "mbtiles_converter.py:_convert_with_rio_tiler:alpha_detected",
-                                            "Source tiles contain alpha; keeping PNG to preserve transparency",
-                                            {"zoom": z, "x": x, "y": y},
-                                            "BG",
-                                        )
                                         alpha_logged = True
 
                                 size_count_by_zoom[z] = size_count_by_zoom.get(z, 0) + 1
                                 if z not in sample_dims_by_zoom:
-                                    sample_dims_by_zoom[z] = {"w": 256, "h": 256}
+                                    sample_dims_by_zoom[z] = {"w": tile_size, "h": tile_size}
 
                                 if tile_data_bytes is None:
-                                    progress.advance(task)
+                                    if verbose and task is not None:
+                                        progress.advance(task)
                                     continue
 
                                 size_sum_by_zoom[z] = size_sum_by_zoom.get(z, 0) + len(
@@ -1436,15 +1072,16 @@ class MBTilesConverter:
                                 tile_count += 1
                                 if tile_count % commit_interval == 0:
                                     conn.commit()
-                                progress.advance(task)
+                                if verbose and task is not None:
+                                    progress.advance(task)
 
                     conn.commit()
 
                     metadata = [
-                        ("name", output_path.stem.replace("terminal_", "").replace("sectional_", "")),
+                        ("name", output_path.stem.replace("T_", "").replace("S_", "").replace("terminal_", "").replace("sectional_", "")),
                         ("type", "overlay"),
                         ("version", "1.1"),
-                        ("description", output_path.stem.replace("terminal_", "").replace("sectional_", "")),
+                        ("description", output_path.stem.replace("T_", "").replace("S_", "").replace("terminal_", "").replace("sectional_", "")),
                         ("format", "mixed"),
                         (
                             "bounds",
@@ -1464,33 +1101,18 @@ class MBTilesConverter:
                     conn.commit()
                     conn.close()
 
-                    _log_debug(
-                        "mbtiles_converter.py:_convert_with_rio_tiler:success",
-                        "Successfully converted with rio-tiler",
-                        {
-                            "tile_count": tile_count,
-                            "output_size": output_path.stat().st_size if output_path.exists() else 0,
-                            "alpha_by_zoom": alpha_by_zoom,
-                            "tile_count_by_zoom": tile_count_by_zoom,
-                            "avg_size_by_zoom": {
-                                z: size_sum_by_zoom[z] // size_count_by_zoom[z]
-                                for z in size_sum_by_zoom
-                            },
-                            "sample_dims_by_zoom": sample_dims_by_zoom,
-                            "dropped_transparent_by_zoom": dropped_transparent_by_zoom,
-                        },
-                        "J",
-                    )
+                    
+
+                    # CRITICAL: Return False if no tiles were generated
+                    if tile_count == 0:
+                        console.print("[red]ERROR: No tiles were generated![/red]")
+                        
+                        return False
+
                     return True
 
         except Exception as e:
             console.print(f"[red]Error converting with rio-tiler: {e}[/red]")
-            _log_debug(
-                "mbtiles_converter.py:_convert_with_rio_tiler:error",
-                "Exception during rio-tiler conversion",
-                {"error": str(e), "error_type": type(e).__name__},
-                "RT",
-            )
             return False
         finally:
             if "temp_cog_path" in locals() and temp_cog_path and temp_cog_path.exists():
@@ -1499,78 +1121,44 @@ class MBTilesConverter:
                 except Exception:
                     pass
 
-    def convert(self, geotiff_path: Path, output_path: Path) -> bool:
+    def convert(self, geotiff_path: Path, output_path: Path, verbose: Optional[bool] = None) -> bool:
         """Convert GeoTIFF to mbtiles using available method.
 
         Args:
             geotiff_path: Path to input GeoTIFF file
             output_path: Path to output mbtiles file
+            verbose: Override verbose setting (None uses instance default)
 
         Returns:
             True if successful, False otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:convert:entry",
-            "Starting conversion",
-            {
-                "geotiff_path": str(geotiff_path),
-                "geotiff_exists": geotiff_path.exists(),
-                "geotiff_size": geotiff_path.stat().st_size if geotiff_path.exists() else 0,
-                "output_path": str(output_path),
-                "min_zoom": self.min_zoom,
-                "max_zoom": self.max_zoom
-            },
-            "A"
-        )
-        # #endregion
+        if verbose is None:
+            verbose = self.verbose
 
         if not geotiff_path.exists():
-            console.print(f"[red]GeoTIFF file not found: {geotiff_path}[/red]")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert:error",
-                "GeoTIFF file not found",
-                {"geotiff_path": str(geotiff_path)},
-                "A"
-            )
-            # #endregion
+            if verbose:
+                console.print(f"[red]GeoTIFF file not found: {geotiff_path}[/red]")
             return False
 
-        console.print(
-            f"[cyan]Converting {geotiff_path.name} to mbtiles...[/cyan]"
-        )
+        if verbose:
+            console.print(
+                f"[cyan]Converting {geotiff_path.name} to mbtiles...[/cyan]"
+            )
 
         # Preferred: rio-tiler pipeline (Python, full control)
-        if self._convert_with_rio_tiler(geotiff_path, output_path):
-            console.print(f"[green]✓[/green] Converted using rio-tiler")
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:convert:success",
-                "Conversion succeeded with rio-tiler",
-                {
-                    "method": "rio-tiler",
-                    "output_exists": output_path.exists(),
-                    "output_size": output_path.stat().st_size if output_path.exists() else 0
-                },
-                "A"
-            )
-            # #endregion
+        if self._convert_with_rio_tiler(geotiff_path, output_path, verbose=verbose):
+            if verbose:
+                console.print(f"[green]✓[/green] Converted using rio-tiler")
+            
             if self._verify_mbtiles(output_path):
                 if self._verify_and_fix_zoom_levels(output_path):
                     return True
 
-        console.print(
-            "[red]Conversion failed with rio-tiler[/red]"
-        )
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:convert:failure",
-            "rio-tiler conversion failed",
-            {},
-            "A"
-        )
-        # #endregion
+        if verbose:
+            console.print(
+                "[red]Conversion failed with rio-tiler[/red]"
+            )
+        
         return False
 
     def _verify_mbtiles(self, mbtiles_path: Path) -> bool:
@@ -1582,45 +1170,17 @@ class MBTilesConverter:
         Returns:
             True if valid, False otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:_verify_mbtiles:entry",
-            "Verifying mbtiles file",
-            {"mbtiles_path": str(mbtiles_path), "exists": mbtiles_path.exists()},
-            "B"
-        )
-        # #endregion
+        
 
         if not mbtiles_path.exists():
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_mbtiles:error",
-                "mbtiles file does not exist",
-                {"mbtiles_path": str(mbtiles_path)},
-                "B"
-            )
-            # #endregion
+            
             return False
 
         file_size = mbtiles_path.stat().st_size
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:_verify_mbtiles:size",
-            "mbtiles file size",
-            {"mbtiles_path": str(mbtiles_path), "file_size": file_size},
-            "B"
-        )
-        # #endregion
+        
 
         if file_size == 0:
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_mbtiles:error",
-                "mbtiles file is empty",
-                {"mbtiles_path": str(mbtiles_path), "file_size": file_size},
-                "B"
-            )
-            # #endregion
+            
             return False
 
         try:
@@ -1631,87 +1191,38 @@ class MBTilesConverter:
             # Check for metadata table
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='metadata'")
             has_metadata = cursor.fetchone() is not None
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_mbtiles:metadata",
-                "Metadata table check",
-                {"has_metadata": has_metadata},
-                "B"
-            )
-            # #endregion
+            
 
             if has_metadata:
                 # Get metadata
                 cursor.execute("SELECT name, value FROM metadata")
                 metadata = dict(cursor.fetchall())
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:_verify_mbtiles:metadata_content",
-                    "Metadata content",
-                    {"metadata": metadata},
-                    "B"
-                )
-                # #endregion
+                
 
             # Check for tiles table
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tiles'")
             has_tiles = cursor.fetchone() is not None
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_mbtiles:tiles",
-                "Tiles table check",
-                {"has_tiles": has_tiles},
-                "C"
-            )
-            # #endregion
+            
 
             if has_tiles:
                 # Count tiles
                 cursor.execute("SELECT COUNT(*) FROM tiles")
                 tile_count = cursor.fetchone()[0]
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:_verify_mbtiles:tile_count",
-                    "Tile count",
-                    {"tile_count": tile_count},
-                    "C"
-                )
-                # #endregion
+                
 
                 # Get zoom level range
                 cursor.execute("SELECT MIN(zoom_level), MAX(zoom_level) FROM tiles")
                 zoom_range = cursor.fetchone()
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:_verify_mbtiles:zoom_range",
-                    "Zoom level range",
-                    {"min_zoom": zoom_range[0] if zoom_range[0] else None, "max_zoom": zoom_range[1] if zoom_range[1] else None},
-                    "C"
-                )
-                # #endregion
+                
 
             conn.close()
 
             is_valid = has_metadata and has_tiles
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_mbtiles:result",
-                "Verification result",
-                {"is_valid": is_valid, "has_metadata": has_metadata, "has_tiles": has_tiles},
-                "B"
-            )
-            # #endregion
+            
             return is_valid
 
         except Exception as e:
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_mbtiles:error",
-                "Error verifying mbtiles",
-                {"error": str(e), "error_type": type(e).__name__},
-                "B"
-            )
-            # #endregion
+            
             console.print(f"[yellow]Warning: Could not verify mbtiles structure: {e}[/yellow]")
             return True  # Assume valid if we can't verify
 
@@ -1743,14 +1254,7 @@ class MBTilesConverter:
         Returns:
             True if valid or fixed, False otherwise
         """
-        # #region agent log
-        _log_debug(
-            "mbtiles_converter.py:_verify_and_fix_zoom_levels:entry",
-            "Verifying and fixing zoom levels",
-            {"mbtiles_path": str(mbtiles_path)},
-            "F"
-        )
-        # #endregion
+        
 
         if not mbtiles_path.exists():
             return False
@@ -1771,21 +1275,7 @@ class MBTilesConverter:
             actual_minzoom = zoom_range[0] if zoom_range[0] is not None else current_minzoom
             actual_maxzoom = zoom_range[1] if zoom_range[1] is not None else current_maxzoom
 
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_and_fix_zoom_levels:current",
-                "Current zoom levels",
-                {
-                    "metadata_minzoom": current_minzoom,
-                    "metadata_maxzoom": current_maxzoom,
-                    "actual_minzoom": actual_minzoom,
-                    "actual_maxzoom": actual_maxzoom,
-                    "requested_minzoom": self.min_zoom,
-                    "requested_maxzoom": self.max_zoom
-                },
-                "F"
-            )
-            # #endregion
+            
 
             # Check if zoom levels match what we requested
             # If tiles only exist at one zoom level (like 13), we need to warn
@@ -1794,17 +1284,7 @@ class MBTilesConverter:
                     f"[yellow]⚠️  Warning: Tiles only exist at zoom {actual_maxzoom}, "
                     f"but ForeFlight may need lower zoom levels (requested {self.min_zoom}-{self.max_zoom})[/yellow]"
                 )
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:_verify_and_fix_zoom_levels:warning",
-                    "Zoom level mismatch - tiles only at high zoom",
-                    {
-                        "actual_zoom": actual_maxzoom,
-                        "requested_range": f"{self.min_zoom}-{self.max_zoom}"
-                    },
-                    "F"
-                )
-                # #endregion
+                
                 # Update metadata to reflect actual zoom levels
                 cursor.execute(
                     "UPDATE metadata SET value = ? WHERE name = 'minzoom'",
@@ -1834,24 +1314,18 @@ class MBTilesConverter:
             return True
 
         except Exception as e:
-            # #region agent log
-            _log_debug(
-                "mbtiles_converter.py:_verify_and_fix_zoom_levels:error",
-                "Error verifying/fixing zoom levels",
-                {"error": str(e), "error_type": type(e).__name__},
-                "F"
-            )
-            # #endregion
+            
             return True  # Assume valid if we can't verify
 
     def convert_batch(
-        self, charts: list, output_dir: Path
+        self, charts: list, output_dir: Path, chart_type_label: str = "Charts"
     ) -> list:
         """Convert multiple GeoTIFF files to mbtiles.
 
         Args:
             charts: List of chart dictionaries with geotiff_path
             output_dir: Directory for output mbtiles files
+            chart_type_label: Label for the chart type (e.g., "Sectional charts", "Terminal charts")
 
         Returns:
             List of charts with added mbtiles_path field
@@ -1859,89 +1333,93 @@ class MBTilesConverter:
         output_dir.mkdir(parents=True, exist_ok=True)
         charts_with_mbtiles = []
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeRemainingColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task(
-                "Converting GeoTIFF to mbtiles...", total=len(charts)
-            )
-
-            for chart in charts:
-                geotiff_path = Path(chart.get("geotiff_path", ""))
-                if not geotiff_path.exists():
-                    console.print(
-                        f"[yellow]GeoTIFF not found for {chart.get('chart_name', 'unknown')}[/yellow]"
-                    )
-                    progress.advance(task)
-                    continue
-
-                chart_name = chart["chart_name"]
-                progress.update(task, description=f"Converting {chart_name}")
-
-                # Generate mbtiles filename
-                safe_name = self._sanitize_filename(chart_name)
-                chart_type = chart.get("chart_type", "unknown")
-                mbtiles_filename = f"{chart_type}_{safe_name}.mbtiles"
-                mbtiles_path = output_dir / mbtiles_filename
-
-                # Convert
-                # #region agent log
-                _log_debug(
-                    "mbtiles_converter.py:convert_batch:before_convert",
-                    "Before conversion",
-                    {
-                        "chart_name": chart_name,
-                        "geotiff_path": str(geotiff_path),
-                        "mbtiles_path": str(mbtiles_path),
-                        "geotiff_exists": geotiff_path.exists(),
-                        "geotiff_size": geotiff_path.stat().st_size if geotiff_path.exists() else 0
-                    },
-                    "D"
+        if self.verbose:
+            # Verbose mode: spinner with detailed output
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task(
+                    "Converting GeoTIFF to mbtiles...", total=len(charts)
                 )
-                # #endregion
 
-                if self.convert(geotiff_path, mbtiles_path):
-                    chart["mbtiles_path"] = str(mbtiles_path)
-                    charts_with_mbtiles.append(chart)
-                    console.print(
-                        f"[green]✓[/green] Created: {mbtiles_filename}"
-                    )
-                    # #region agent log
-                    _log_debug(
-                        "mbtiles_converter.py:convert_batch:after_convert",
-                        "After successful conversion",
-                        {
-                            "chart_name": chart_name,
-                            "mbtiles_path": str(mbtiles_path),
-                            "mbtiles_exists": mbtiles_path.exists(),
-                            "mbtiles_size": mbtiles_path.stat().st_size if mbtiles_path.exists() else 0
-                        },
-                        "D"
-                    )
-                    # #endregion
-                else:
-                    console.print(
-                        f"[red]✗[/red] Failed to convert {chart_name}"
-                    )
-                    # #region agent log
-                    _log_debug(
-                        "mbtiles_converter.py:convert_batch:convert_failed",
-                        "Conversion failed",
-                        {
-                            "chart_name": chart_name,
-                            "mbtiles_path": str(mbtiles_path),
-                            "mbtiles_exists": mbtiles_path.exists()
-                        },
-                        "D"
-                    )
-                    # #endregion
+                for chart in charts:
+                    geotiff_path = Path(chart.get("geotiff_path", ""))
+                    if not geotiff_path.exists():
+                        console.print(
+                            f"[yellow]GeoTIFF not found for {chart.get('chart_name', 'unknown')}[/yellow]"
+                        )
+                        progress.advance(task)
+                        continue
 
-                progress.advance(task)
+                    chart_name = chart["chart_name"]
+                    progress.update(task, description=f"Converting {chart_name}")
+
+                    # Generate mbtiles filename with short prefix
+                    safe_name = self._sanitize_filename(chart_name)
+                    chart_type = chart.get("chart_type", "unknown")
+                    # Use short prefixes: T_ for terminal, S_ for sectional
+                    prefix_map = {"terminal": "T", "sectional": "S"}
+                    prefix = prefix_map.get(chart_type, chart_type[:1].upper())
+                    mbtiles_filename = f"{prefix}_{safe_name}.mbtiles"
+                    mbtiles_path = output_dir / mbtiles_filename
+
+                    # Convert
+                    if self.convert(geotiff_path, mbtiles_path, verbose=self.verbose):
+                        chart["mbtiles_path"] = str(mbtiles_path)
+                        charts_with_mbtiles.append(chart)
+                        console.print(
+                            f"[green]✓[/green] Created: {mbtiles_filename}"
+                        )
+                    else:
+                        console.print(
+                            f"[red]✗[/red] Failed to convert {chart_name}"
+                        )
+
+                    progress.advance(task)
+        else:
+            # Non-verbose mode: progress bar with spinner and status
+            with Progress(
+                SpinnerColumn(),
+                BarColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TextColumn("[dim]{task.fields[status]}[/dim]", justify="right"),
+                console=console,
+            ) as progress:
+                task = progress.add_task(
+                    f"Processing {chart_type_label}",
+                    total=len(charts),
+                    status=""
+                )
+
+                for idx, chart in enumerate(charts):
+                    geotiff_path = Path(chart.get("geotiff_path", ""))
+                    if not geotiff_path.exists():
+                        progress.update(task, status=f"[yellow]Skipping {chart.get('chart_name', 'unknown')}[/yellow]")
+                        progress.advance(task)
+                        continue
+
+                    chart_name = chart["chart_name"]
+                    progress.update(task, status=chart_name)
+
+                    # Generate mbtiles filename with short prefix
+                    safe_name = self._sanitize_filename(chart_name)
+                    chart_type = chart.get("chart_type", "unknown")
+                    # Use short prefixes: T_ for terminal, S_ for sectional
+                    prefix_map = {"terminal": "T", "sectional": "S"}
+                    prefix = prefix_map.get(chart_type, chart_type[:1].upper())
+                    mbtiles_filename = f"{prefix}_{safe_name}.mbtiles"
+                    mbtiles_path = output_dir / mbtiles_filename
+
+                    # Convert (suppress output in non-verbose mode)
+                    if self.convert(geotiff_path, mbtiles_path, verbose=False):
+                        chart["mbtiles_path"] = str(mbtiles_path)
+                        charts_with_mbtiles.append(chart)
+                    else:
+                        progress.update(task, status=f"[red]Failed: {chart_name}[/red]")
+
+                    progress.advance(task)
 
         return charts_with_mbtiles
 

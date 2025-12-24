@@ -374,18 +374,36 @@ def process_all(
         "--test-terminal-quick",
         help="Test mode: first Terminal Area chart with reduced zoom levels",
     ),
+    test_sectional: bool = typer.Option(
+        False, "--test-sectional", help="Test mode: process only first Sectional chart"
+    ),
+    test_sectional_quick: bool = typer.Option(
+        False,
+        "--test-sectional-quick",
+        help="Test mode: first Sectional chart with reduced zoom levels",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Verbose output with detailed progress information"
+    ),
 ) -> None:
     """Process selected chart sources into unified BYOP package."""
     console.print("[bold cyan]Processing selected chart sources into unified BYOP package...[/bold cyan]")
 
-    # Prompt for source selection (skip if a test terminal mode is active)
-    if test_terminal and test_terminal_quick:
-        raise typer.BadParameter("Use only one of --test-terminal or --test-terminal-quick")
+    # Prompt for source selection (skip if a test mode is active)
+    if (test_terminal and test_terminal_quick) or (test_sectional and test_sectional_quick):
+        raise typer.BadParameter("Use only one test option per chart type")
+    if (test_terminal or test_terminal_quick) and (test_sectional or test_sectional_quick):
+        raise typer.BadParameter("Use test options for only one chart type at a time")
 
     if test_terminal or test_terminal_quick:
         selected_sources = ["FAA Terminal"]
         console.print("[yellow]TEST MODE: Only processing Terminal Area charts[/yellow]")
         if test_terminal_quick:
+            console.print("[yellow]QUICK MODE: Using reduced zoom levels for faster conversion[/yellow]")
+    elif test_sectional or test_sectional_quick:
+        selected_sources = ["FAA Sectional"]
+        console.print("[yellow]TEST MODE: Only processing Sectional charts[/yellow]")
+        if test_sectional_quick:
             console.print("[yellow]QUICK MODE: Using reduced zoom levels for faster conversion[/yellow]")
     else:
         selected_sources = prompt_source_selection()
@@ -401,6 +419,10 @@ def process_all(
         # Process DFS charts
         if "DFS" in selected_sources:
             console.print("\n[bold cyan]Processing DFS Charts...[/bold cyan]")
+            console.print(
+                "[yellow]ℹ️  Note: Delays are added between airports to mimic human browsing behavior "
+                "and avoid overloading the server[/yellow]"
+            )
             dfs_scraper = AIPScraper()
             dfs_pdf_generator = PDFGenerator(output_dir)
             
@@ -420,10 +442,18 @@ def process_all(
             console.print(f"[green]✓[/green] Processed {len(dfs_charts)} DFS charts")
 
         # Process FAA Sectional charts
-        if "FAA Sectional" in selected_sources:
+        if "FAA Sectional" in selected_sources or test_sectional or test_sectional_quick:
             console.print("\n[bold cyan]Processing FAA Sectional Charts...[/bold cyan]")
+            if test_sectional:
+                console.print("[yellow]TEST MODE: Processing only first Sectional chart[/yellow]")
+            if test_sectional_quick:
+                console.print("[yellow]TEST QUICK MODE: First Sectional chart at reduced zoom[/yellow]")
             faa_scraper = FAAScraper()
-            mbtiles_converter = MBTilesConverter()
+            if test_sectional_quick:
+                # Lower max zoom to speed up test conversions
+                mbtiles_converter = MBTilesConverter(min_zoom=6, max_zoom=9, verbose=verbose)
+            else:
+                mbtiles_converter = MBTilesConverter(verbose=verbose)
             
             # Create temporary directories
             temp_dir = Path(output_dir) / ".temp"
@@ -435,7 +465,8 @@ def process_all(
                 # Scrape charts
                 sectional_charts = faa_scraper.scrape_charts(
                     chart_types=["sectional"],
-                    limit=limit_faa
+                    limit=1 if (test_sectional or test_sectional_quick) else limit_faa,
+                    verbose=verbose
                 )
                 
                 if not sectional_charts:
@@ -445,13 +476,15 @@ def process_all(
                     charts_with_files = faa_scraper.download_and_extract_charts(
                         sectional_charts,
                         download_dir,
-                        extract_dir
+                        extract_dir,
+                        verbose=verbose
                     )
                     
                     # Convert to mbtiles
                     charts_with_mbtiles = mbtiles_converter.convert_batch(
                         charts_with_files,
-                        layers_dir
+                        layers_dir,
+                        chart_type_label="Sectional charts"
                     )
                     
                     console.print(f"[green]✓[/green] Processed {len(charts_with_mbtiles)} FAA Sectional charts")
@@ -473,9 +506,9 @@ def process_all(
             faa_scraper = FAAScraper()
             if test_terminal_quick:
                 # Lower max zoom to speed up test conversions
-                mbtiles_converter = MBTilesConverter(min_zoom=6, max_zoom=10)
+                mbtiles_converter = MBTilesConverter(min_zoom=6, max_zoom=9, verbose=verbose)
             else:
-                mbtiles_converter = MBTilesConverter()
+                mbtiles_converter = MBTilesConverter(verbose=verbose)
             
             # Create temporary directories
             temp_dir = Path(output_dir) / ".temp"
@@ -487,7 +520,8 @@ def process_all(
                 # Scrape charts
                 terminal_charts = faa_scraper.scrape_charts(
                     chart_types=["terminal"],
-                    limit=1 if (test_terminal or test_terminal_quick) else limit_faa
+                    limit=1 if (test_terminal or test_terminal_quick) else limit_faa,
+                    verbose=verbose
                 )
                 
                 if not terminal_charts:
@@ -497,13 +531,15 @@ def process_all(
                     charts_with_files = faa_scraper.download_and_extract_charts(
                         terminal_charts,
                         download_dir,
-                        extract_dir
+                        extract_dir,
+                        verbose=verbose
                     )
                     
                     # Convert to mbtiles
                     charts_with_mbtiles = mbtiles_converter.convert_batch(
                         charts_with_files,
-                        layers_dir
+                        layers_dir,
+                        chart_type_label="Terminal charts"
                     )
                     
                     console.print(f"[green]✓[/green] Processed {len(charts_with_mbtiles)} FAA Terminal Area charts")

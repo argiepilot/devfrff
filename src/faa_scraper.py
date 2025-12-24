@@ -114,22 +114,36 @@ class FAAScraper:
 
         for table in tables:
             # Check if this is the sectional table by looking for preceding text
-            prev_text = ""
             for prev in table.find_all_previous(string=True):
-                if "Sectional Aeronautical Raster Charts" in prev:
-                    sectional_table = table
-                    break
+                if "Sectional Aeronautical Raster Charts" in prev or "__Sectional Aeronautical Raster Charts" in prev:
+                    # Verify it's actually sectional by checking URLs in the table
+                    all_links = table.find_all("a", href=True)
+                    has_sectional_urls = any(
+                        "/sectional-files/" in link.get("href", "").lower() 
+                        for link in all_links
+                    )
+                    if has_sectional_urls:
+                        sectional_table = table
+                        break
             if sectional_table:
                 break
 
         if not sectional_table:
-            # Try alternative: look for table with "Chart Name" header
+            # Try alternative: look for table with URLs containing "sectional-files"
             for table in tables:
                 headers = table.find_all("th")
                 if any("Chart Name" in h.get_text() for h in headers):
-                    # Check if it contains sectional charts (not TAC)
-                    table_text = table.get_text()
-                    if "Sectional" in table_text or "Albuquerque" in table_text:
+                    # Check URLs in the table to verify it's sectional
+                    all_links = table.find_all("a", href=True)
+                    has_sectional_urls = any(
+                        "/sectional-files/" in link.get("href", "").lower() 
+                        for link in all_links
+                    )
+                    has_tac_urls = any(
+                        "/tac-files/" in link.get("href", "").lower() 
+                        for link in all_links
+                    )
+                    if has_sectional_urls and not has_tac_urls:
                         sectional_table = table
                         break
 
@@ -149,28 +163,33 @@ class FAAScraper:
             if not chart_name:
                 continue
 
-            # Find GEO-TIFF link (not PDF)
-            # The links are typically like [GEO-TIFF](url) or just have "GEO-TIFF" text
+            # Find GEO-TIFF link from Current Edition column (not Next Edition)
+            # The Current Edition is in the second column (cells[1])
             geo_tiff_link = None
-            links = row.find_all("a", href=True)
-            for link in links:
-                link_text = link.get_text(strip=True)
-                href = link.get("href", "")
-                # Look for GEO-TIFF, GEO-Tiff, Geo-Tiff, or check if href contains .zip
-                if (
-                    "GEO-TIFF" in link_text.upper()
-                    or "GEO-Tiff" in link_text
-                    or "Geo-Tiff" in link_text
-                    or (href.endswith(".zip") and "sectional" in href.lower())
-                ):
-                    geo_tiff_link = href
-                    break
+            current_edition_cell = cells[1] if len(cells) > 1 else None
             
-            # If still not found, look for any .zip link in sectional-files directory
+            if current_edition_cell:
+                # Look for links in the Current Edition cell
+                links = current_edition_cell.find_all("a", href=True)
+                for link in links:
+                    link_text = link.get_text(strip=True)
+                    href = link.get("href", "")
+                    # Must be in sectional-files directory and be a zip file
+                    if (
+                        href.endswith(".zip") 
+                        and "/sectional-files/" in href.lower()
+                        and ("GEO-TIFF" in link_text.upper() or "GEO-Tiff" in link_text or "Geo-Tiff" in link_text or not link_text)
+                    ):
+                        geo_tiff_link = href
+                        break
+            
+            # Fallback: search all links in row if not found in Current Edition cell
             if not geo_tiff_link:
+                links = row.find_all("a", href=True)
                 for link in links:
                     href = link.get("href", "")
-                    if href.endswith(".zip") and "sectional" in href.lower():
+                    # Must be in sectional-files directory
+                    if href.endswith(".zip") and "/sectional-files/" in href.lower():
                         geo_tiff_link = href
                         break
 
@@ -179,11 +198,11 @@ class FAAScraper:
                 if not geo_tiff_link.startswith("http"):
                     geo_tiff_link = urljoin(self.base_url, geo_tiff_link)
 
-                # Extract edition date from the row or previous context
+                # Extract edition date from the Current Edition cell
                 edition_date = None
-                if len(cells) > 1:
-                    date_text = cells[1].get_text(strip=True)
-                    # Try to extract date pattern
+                if current_edition_cell:
+                    date_text = current_edition_cell.get_text(strip=True)
+                    # Try to extract date pattern (e.g., "Nov 27 2025")
                     date_match = re.search(r"(\w+\s+\d+\s+\d{4})", date_text)
                     if date_match:
                         edition_date = date_match.group(1)
@@ -216,26 +235,39 @@ class FAAScraper:
         terminal_table = None
 
         for table in tables:
-            # Check if this is the terminal table
-            prev_text = ""
+            # Check if this is the terminal table by looking for preceding text
             for prev in table.find_all_previous(string=True):
-                if "VFR Terminal Area Raster Charts" in prev or "Terminal Area Chart" in prev:
-                    terminal_table = table
-                    break
+                if "VFR Terminal Area Raster Charts" in prev or "__VFR Terminal Area Raster Charts" in prev:
+                    # Verify it's actually terminal by checking URLs in the table
+                    all_links = table.find_all("a", href=True)
+                    has_tac_urls = any(
+                        "/tac-files/" in link.get("href", "").lower() 
+                        for link in all_links
+                    )
+                    if has_tac_urls:
+                        terminal_table = table
+                        break
             if terminal_table:
                 break
 
         if not terminal_table:
-            # Try alternative: look for table with TAC charts
+            # Try alternative: look for table with URLs containing "tac-files"
             for table in tables:
                 headers = table.find_all("th")
                 if any("Chart Name" in h.get_text() for h in headers):
-                    table_text = table.get_text()
-                    if "TAC" in table_text or "Terminal" in table_text or "Atlanta" in table_text:
-                        # Make sure it's not sectional
-                        if "Sectional" not in table_text:
-                            terminal_table = table
-                            break
+                    # Check URLs in the table to verify it's terminal
+                    all_links = table.find_all("a", href=True)
+                    has_tac_urls = any(
+                        "/tac-files/" in link.get("href", "").lower() 
+                        for link in all_links
+                    )
+                    has_sectional_urls = any(
+                        "/sectional-files/" in link.get("href", "").lower() 
+                        for link in all_links
+                    )
+                    if has_tac_urls and not has_sectional_urls:
+                        terminal_table = table
+                        break
 
         if not terminal_table:
             console.print("[yellow]Could not find Terminal Area charts table[/yellow]")
@@ -253,28 +285,33 @@ class FAAScraper:
             if not chart_name:
                 continue
 
-            # Find GEO-TIFF link (not PDF)
-            # The links are typically like [GEO-TIFF](url) or just have "GEO-TIFF" text
+            # Find GEO-TIFF link from Current Edition column (not Next Edition)
+            # The Current Edition is in the second column (cells[1])
             geo_tiff_link = None
-            links = row.find_all("a", href=True)
-            for link in links:
-                link_text = link.get_text(strip=True)
-                href = link.get("href", "")
-                # Look for GEO-TIFF, GEO-Tiff, Geo-Tiff, or check if href contains .zip
-                if (
-                    "GEO-TIFF" in link_text.upper()
-                    or "GEO-Tiff" in link_text
-                    or "Geo-Tiff" in link_text
-                    or (href.endswith(".zip") and "tac" in href.lower())
-                ):
-                    geo_tiff_link = href
-                    break
+            current_edition_cell = cells[1] if len(cells) > 1 else None
             
-            # If still not found, look for any .zip link in tac-files directory
+            if current_edition_cell:
+                # Look for links in the Current Edition cell
+                links = current_edition_cell.find_all("a", href=True)
+                for link in links:
+                    link_text = link.get_text(strip=True)
+                    href = link.get("href", "")
+                    # Must be in tac-files directory and be a zip file
+                    if (
+                        href.endswith(".zip") 
+                        and "/tac-files/" in href.lower()
+                        and ("GEO-TIFF" in link_text.upper() or "GEO-Tiff" in link_text or "Geo-Tiff" in link_text or not link_text)
+                    ):
+                        geo_tiff_link = href
+                        break
+            
+            # Fallback: search all links in row if not found in Current Edition cell
             if not geo_tiff_link:
+                links = row.find_all("a", href=True)
                 for link in links:
                     href = link.get("href", "")
-                    if href.endswith(".zip") and "tac" in href.lower():
+                    # Must be in tac-files directory
+                    if href.endswith(".zip") and "/tac-files/" in href.lower():
                         geo_tiff_link = href
                         break
 
@@ -283,10 +320,11 @@ class FAAScraper:
                 if not geo_tiff_link.startswith("http"):
                     geo_tiff_link = urljoin(self.base_url, geo_tiff_link)
 
-                # Extract edition date
+                # Extract edition date from the Current Edition cell
                 edition_date = None
-                if len(cells) > 1:
-                    date_text = cells[1].get_text(strip=True)
+                if current_edition_cell:
+                    date_text = current_edition_cell.get_text(strip=True)
+                    # Try to extract date pattern (e.g., "Nov 27 2025")
                     date_match = re.search(r"(\w+\s+\d+\s+\d{4})", date_text)
                     if date_match:
                         edition_date = date_match.group(1)
@@ -352,8 +390,23 @@ class FAAScraper:
                     )
                     return None
 
-                # Extract the first GeoTIFF file (usually there's only one)
-                tif_file = tif_files[0]
+                # For terminal charts, prefer TAC files over FLY files
+                # Filter for TAC files first
+                tac_files = [f for f in tif_files if "TAC" in f.upper() or "tac" in f.lower()]
+                if tac_files:
+                    tif_file = tac_files[0]
+                else:
+                    # If no TAC files, check if there are FLY files and skip them
+                    fly_files = [f for f in tif_files if "FLY" in f.upper() or "fly" in f.lower()]
+                    if fly_files and len(tif_files) == len(fly_files):
+                        # Only FLY files found, skip this chart
+                        console.print(
+                            f"[yellow]Skipping {zip_path.name}: Only FLY files found (processing TAC files only)[/yellow]"
+                        )
+                        return None
+                    # Use first available file if no TAC/FLY distinction
+                    tif_file = tif_files[0]
+                
                 zip_ref.extract(tif_file, output_dir)
 
                 extracted_path = output_dir / Path(tif_file).name
@@ -364,17 +417,19 @@ class FAAScraper:
             return None
 
     def scrape_charts(
-        self, chart_types: List[str], limit: Optional[int] = None
+        self, chart_types: List[str], limit: Optional[int] = None, verbose: bool = False
     ) -> List[Dict[str, str]]:
         """Scrape FAA charts of specified types.
 
         Args:
             chart_types: List of chart types to scrape ("sectional", "terminal")
             limit: Optional limit on number of charts per type
+            verbose: If True, show detailed progress output
 
         Returns:
             List of chart dictionaries
         """
+        # Always show these status messages (important for user feedback)
         console.print("[bold blue]Fetching FAA VFR Raster Charts page...[/bold blue]")
         html = self.get_vfr_page()
 
@@ -407,6 +462,7 @@ class FAAScraper:
         charts: List[Dict[str, str]],
         download_dir: Path,
         extract_dir: Path,
+        verbose: bool = False,
     ) -> List[Dict[str, str]]:
         """Download zip files and extract GeoTIFF files.
 
@@ -414,6 +470,7 @@ class FAAScraper:
             charts: List of chart dictionaries with geo_tiff_url
             download_dir: Directory for temporary zip files
             extract_dir: Directory for extracted GeoTIFF files
+            verbose: If True, show detailed progress output
 
         Returns:
             List of charts with added geotiff_path field
@@ -423,40 +480,83 @@ class FAAScraper:
 
         charts_with_files = []
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task(
-                "Downloading and extracting charts...", total=len(charts)
-            )
+        if verbose:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task(
+                    "Downloading and extracting charts...", total=len(charts)
+                )
 
-            for chart in charts:
-                chart_name = chart["chart_name"]
-                progress.update(task, description=f"Processing {chart_name}")
+                for chart in charts:
+                    chart_name = chart["chart_name"]
+                    progress.update(task, description=f"Processing {chart_name}")
 
-                # Sanitize chart name for filename
-                safe_name = re.sub(r'[<>:"/\\|?*]', "_", chart_name)
-                zip_filename = f"{safe_name}.zip"
-                zip_path = download_dir / zip_filename
+                    # Sanitize chart name for filename
+                    safe_name = re.sub(r'[<>:"/\\|?*]', "_", chart_name)
+                    zip_filename = f"{safe_name}.zip"
+                    zip_path = download_dir / zip_filename
 
-                # Download zip file
-                if not self.download_zip_file(chart["geo_tiff_url"], zip_path):
-                    console.print(f"[red]Failed to download {chart_name}[/red]")
-                    continue
+                    # Download zip file
+                    if not self.download_zip_file(chart["geo_tiff_url"], zip_path):
+                        console.print(f"[red]Failed to download {chart_name}[/red]")
+                        progress.advance(task)
+                        continue
 
-                # Extract GeoTIFF
-                geotiff_path = self.extract_geotiff_from_zip(zip_path, extract_dir)
-                if geotiff_path:
-                    chart["geotiff_path"] = str(geotiff_path)
-                    charts_with_files.append(chart)
-                    console.print(
-                        f"[green]✓[/green] Extracted: {chart_name} -> {geotiff_path.name}"
-                    )
-                else:
-                    console.print(f"[yellow]No GeoTIFF found in {chart_name}[/yellow]")
+                    # Extract GeoTIFF
+                    geotiff_path = self.extract_geotiff_from_zip(zip_path, extract_dir)
+                    if geotiff_path:
+                        chart["geotiff_path"] = str(geotiff_path)
+                        charts_with_files.append(chart)
+                        console.print(
+                            f"[green]✓[/green] Extracted: {chart_name} -> {geotiff_path.name}"
+                        )
+                    else:
+                        console.print(f"[yellow]No GeoTIFF found in {chart_name}[/yellow]")
 
-                progress.advance(task)
+                    progress.advance(task)
+        else:
+            # Non-verbose: show spinner status during download/extraction
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task(
+                    "Downloading and extracting charts...", total=None
+                )
+                
+                for idx, chart in enumerate(charts):
+                    chart_name = chart["chart_name"]
+                    progress.update(task, description=f"Downloading {chart_name}...")
+
+                    # Sanitize chart name for filename
+                    safe_name = re.sub(r'[<>:"/\\|?*]', "_", chart_name)
+                    zip_filename = f"{safe_name}.zip"
+                    zip_path = download_dir / zip_filename
+
+                    # Download zip file
+                    if not self.download_zip_file(chart["geo_tiff_url"], zip_path):
+                        continue
+
+                    # Extract GeoTIFF
+                    progress.update(task, description=f"Extracting {chart_name}...")
+                    geotiff_path = self.extract_geotiff_from_zip(zip_path, extract_dir)
+                    if geotiff_path:
+                        chart["geotiff_path"] = str(geotiff_path)
+                        charts_with_files.append(chart)
+                
+                # Update task to empty to clear the description, then remove it
+                progress.update(task, description="")
+                progress.remove_task(task)
+                # Give Rich a moment to render the removal
+                import time
+                time.sleep(0.05)
+            
+            # After progress closes, print final status
+            # The spinner line should be cleared by removing the task
+            console.print("[green]✓[/green] Extracting")
 
         return charts_with_files
