@@ -766,22 +766,8 @@ class MBTilesConverter:
             # GDAL MBTiles driver does NOT support ZOOM_LEVEL option (as confirmed by warning)
             # We need to use a different approach - skip CreateCopy and use gdal2tiles instead
             
-            
             # Return False to fall back to gdal2tiles method
             return False
-
-            if dst_ds is None:
-                console.print(f"[red]Failed to create mbtiles: {output_path}[/red]")
-                
-                return False
-
-            
-
-            # Clean up
-            dst_ds = None
-            src_ds = None
-
-            return True
 
         except ImportError:
             console.print(
