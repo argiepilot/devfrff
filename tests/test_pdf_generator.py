@@ -271,8 +271,14 @@ class TestPDFGenerator:
         with tempfile.TemporaryDirectory() as tmpdir:
             generator = PDFGenerator(output_dir=tmpdir)
             
-            # Mock PDF conversion to succeed
-            mock_image_to_pdf.return_value = True
+            # Mock PDF conversion to succeed and actually create the file
+            def mock_image_to_pdf_side_effect(image_data, output_path):
+                # Actually create the file so the test can verify it exists
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_bytes(b"fake pdf content")
+                return True
+            
+            mock_image_to_pdf.side_effect = mock_image_to_pdf_side_effect
             
             # Test chart data
             chart_info = {
