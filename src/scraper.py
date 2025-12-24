@@ -570,7 +570,7 @@ class AIPScraper:
 
         if limit_aerodromes:
             console.print(
-                f"[yellowLimiting to first {limit_aerodromes} aerodromes for testing[/yellow]"
+                f"[yellow]Limiting to first {limit_aerodromes} aerodromes for testing[/yellow]"
             )
 
         # Get main page
