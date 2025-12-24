@@ -77,7 +77,7 @@ pytest tests/ -k "test_init"
 
 ```
 tests/
-├── __init__.py              # Makes tests a Python package
+├── __init__.py             # Makes tests a Python package
 ├── test_scraper.py         # Tests for AIPScraper
 ├── test_faa_scraper.py     # Tests for FAAScraper
 ├── test_pdf_generator.py   # Tests for PDFGenerator
