@@ -1,0 +1,68 @@
+name: Tests
+
+# This workflow runs tests automatically when code is pushed or pull requests are created
+# It ensures that all tests pass before code can be merged
+
+on:
+  # Run on pushes to main branches
+  push:
+    branches: [ main, master, develop ]
+  # Run on all pull requests
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    # Run on Ubuntu (Linux) - most common CI environment
+    runs-on: ubuntu-latest
+    
+    # Set up the environment
+    steps:
+    # Step 1: Checkout the code
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Step 2: Set up Miniconda (lightweight conda distribution)
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        # Use Python 3.11 to match environment.yml
+        python-version: '3.11'
+        # Automatically activate the environment
+        auto-activate-base: false
+        # Channel priority: strict (ensures consistent package resolution)
+        channel-priority: strict
+    
+    # Step 3: Install dependencies from environment.yml
+    - name: Install dependencies
+      shell: bash -l {0}
+      run: |
+        # Create conda environment from environment.yml
+        conda env create -f environment.yml
+        
+        # Activate the environment
+        conda activate devfrff
+        
+        # Install pytest if not already in environment.yml
+        conda install -y pytest pytest-mock || pip install pytest pytest-mock
+    
+    # Step 4: Run the tests
+    - name: Run tests
+      shell: bash -l {0}
+      run: |
+        # Activate the environment
+        conda activate devfrff
+        
+        # Run pytest with verbose output
+        # The pytest.ini file configures it to only run tests from tests/ directory
+        pytest tests/ -v --tb=short
+    
+    # Optional: Step 5 - Run linting (if you want code quality checks)
+    # Uncomment this section if you want to run linting in CI
+    # - name: Run linting
+    #   shell: bash -l {0}
+    #   run: |
+    #     conda activate devfrff
+    #     flake8 src/ tests/ --max-line-length=100 --exclude=__pycache__
+    #     black --check src/ tests/
+    #     isort --check-only src/ tests/

@@ -837,8 +837,10 @@ class AIPScraper:
 
                     # Pause between airports (like a real user thinking/reading)
                     if aerodrome_idx < len(aerodromes) - 1:  # Don't pause after last airport in section
-                        # Randomize pause between 3-8 seconds
-                        random_pause = random.uniform(3.0, 8.0)
+                        # Randomize pause around airport_pause (±40% variation)
+                        pause_min = airport_pause * 0.6
+                        pause_max = airport_pause * 1.4
+                        random_pause = random.uniform(pause_min, pause_max)
                         console.print(f"[yellow]⏸  Pausing {random_pause:.1f}s before next airport...[/yellow]")
                         time.sleep(random_pause)
 
@@ -857,8 +859,10 @@ class AIPScraper:
             # Don't pause if we've reached the limit or if this is the last section
             if (section_idx < len(sections) - 1 and 
                 not (limit_aerodromes and processed_aerodromes >= limit_aerodromes)):
-                # Randomize pause between 12-18 seconds
-                random_section_pause = random.uniform(12.0, 18.0)
+                # Randomize pause around section_pause (±40% variation)
+                pause_min = section_pause * 0.6
+                pause_max = section_pause * 1.4
+                random_section_pause = random.uniform(pause_min, pause_max)
                 console.print(f"[yellow]⏸  Pausing {random_section_pause:.1f}s before next section...[/yellow]")
                 time.sleep(random_section_pause)
 
