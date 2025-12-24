@@ -33,9 +33,11 @@
 
 ### Workflow steps (CLI)
 1. Activate env: `conda activate devfrff`
-2. Run unified/test mode (Terminal example):  
-   - Full detail: `python run.py process-all --test-terminal`  
-   - Faster quick check (zoom 6–9): `python run.py process-all --test-terminal-quick`
+2. Run FAA-only modes (recommended for iterating):  
+   - Terminal charts (full): `python run.py process-faa-terminal`  
+   - Terminal charts (quick): `python run.py process-faa-terminal --quick --limit 1`  
+   - Sectional charts (full): `python run.py process-faa-sectional`  
+   - Sectional charts (quick): `python run.py process-faa-sectional --quick --limit 1`
 3. Outputs:  
    - `VFR Charts Package/layers/terminal_<Name>.mbtiles` (JPEG-compressed tiles, zoom 6–12, 512x512 tiles)  
    - `VFR Charts Package/manifest.json`

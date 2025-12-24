@@ -17,6 +17,8 @@ if __name__ == "__main__":
         "full-pipeline",
         "process-realistic",
         "process-all",
+        "process-faa-sectional",
+        "process-faa-terminal",
         "info",
     ]
     

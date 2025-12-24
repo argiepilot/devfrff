@@ -278,27 +278,22 @@ Some things that still need a little bit of tweaking and improvement:
 
 The tool provides several test modes for faster development and testing. They serve to test the full process with just one chart, and optionally with fewer zoom levels (for faster processing).
 
-#### Test Mode Options for process-all
+#### FAA-only commands (recommended for iterating)
 
 ```bash
-# Test Terminal Area charts (process only first chart)
-python run.py process-all --test-terminal
+# FAA Terminal Area charts
+python run.py process-faa-terminal --limit 1
+python run.py process-faa-terminal --quick --limit 1
 
-# Test Terminal Area charts (quick mode with reduced zoom levels 6-9)
-python run.py process-all --test-terminal-quick
+# FAA Sectional charts
+python run.py process-faa-sectional --limit 1
+python run.py process-faa-sectional --quick --limit 1
 
-# Test Sectional charts (process only first chart)
-python run.py process-all --test-sectional
-
-# Test Sectional charts (quick mode with reduced zoom levels 6-9)
-python run.py process-all --test-sectional-quick
-
-# Combine with other options
-python run.py process-all --test-terminal-quick --limit-dfs 0
-python run.py process-all --test-sectional-quick --limit-dfs 0
+# Unified package, but skip DFS while iterating on FAA
+python run.py process-all --no-dfs --faa-quick --limit-faa 1
 ```
 
-**Note:** Test modes automatically select the appropriate chart type and skip interactive source selection.
+**Note:** `process-all` defaults to running **DFS + FAA sectional + FAA terminal**. Use `--no-dfs`, `--no-faa-sectional`, `--no-faa-terminal` to narrow it down.
 
 ### Project Structure
 
