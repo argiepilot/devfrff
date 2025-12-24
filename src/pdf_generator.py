@@ -22,6 +22,7 @@ class PDFGenerator:
         # Create output directory and BYOP subdirectory
         self.output_dir.mkdir(exist_ok=True)
         (self.output_dir / "byop").mkdir(exist_ok=True)
+        # Keep layers directory for unified packages (FAA mbtiles live here)
         (self.output_dir / "layers").mkdir(exist_ok=True)
 
     def sanitize_filename(self, filename: str) -> str:

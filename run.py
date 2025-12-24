@@ -25,4 +25,4 @@ if __name__ == "__main__":
         # No valid command specified, add process-all
         sys.argv.insert(1, "process-all")
     
-    app() 
+    app()

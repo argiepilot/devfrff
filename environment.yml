@@ -20,8 +20,8 @@ dependencies:
   - rasterio
   - pip
   - pip:
-      - img2pdf
-      - rio-tiler
-      - morecantile
-      - mercantile
-      - rio-cogeo
+    - img2pdf
+    - rio-tiler
+    - morecantile
+    - mercantile
+    - rio-cogeo
