@@ -557,6 +557,6 @@ class FAAScraper:
             
             # After progress closes, print final status
             # The spinner line should be cleared by removing the task
-            console.print("[green]Extracting[/green]")
+            console.print(f"[green]Downloaded and extracted {len(charts_with_files)} charts[/green]")
 
         return charts_with_files

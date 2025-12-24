@@ -865,6 +865,12 @@ class MBTilesConverter:
                     )
                     
 
+                    # Get bounds and prepare tile filtering while COGReader is open
+                    base_zoom = self.min_zoom
+                    alpha_threshold = 1  # drop tiles that are effectively fully transparent
+                    base_tiles = []
+                    valid_base: set[tuple[int, int]] = set()
+                    
                     with COGReader(str(temp_cog_path), tms=tms) as cog:
                         # Get bounds in dataset CRS
                         dataset_bounds = cog.bounds
@@ -885,8 +891,6 @@ class MBTilesConverter:
                         # Build a filtered tile list: sample at min_zoom to find tiles with data,
                         # then expand only those tiles across higher zooms. This avoids wasting
                         # time on large transparent areas.
-                        base_zoom = self.min_zoom
-                        alpha_threshold = 1  # drop tiles that are effectively fully transparent
                         base_tiles = list(
                             tms.tiles(
                                 bounds_wgs84[0],
@@ -897,15 +901,19 @@ class MBTilesConverter:
                             )
                         )
                         
-                        valid_base: set[tuple[int, int]] = set()
+                        # Filter tiles by checking alpha channel while COGReader is still open
                         tile_size = self.tile_size
                         for base_tile in base_tiles:
                             try:
                                 _, base_mask = cog.tile(base_tile.x, base_tile.y, base_zoom, tilesize=tile_size)
+                                if base_mask.max() > alpha_threshold:
+                                    valid_base.add((base_tile.x, base_tile.y))
                             except Exception as e:
+                                # Log the error but continue processing other tiles
+                                # This could indicate a tile outside the dataset bounds or other issues
+                                if verbose:
+                                    console.print(f"[yellow]Warning: Failed to read tile ({base_tile.x}, {base_tile.y}) at zoom {base_zoom}: {e}[/yellow]")
                                 continue
-                            if base_mask.max() > alpha_threshold:
-                                valid_base.add((base_tile.x, base_tile.y))
                     
                     # If no valid base tiles found, try processing all tiles anyway (maybe threshold is too strict)
                     if len(valid_base) == 0 and len(base_tiles) > 0:
