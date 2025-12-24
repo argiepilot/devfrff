@@ -445,7 +445,7 @@ class AIPScraper:
                         return response.content
                     else:
                         console.print(
-                            f"[yellow] Image too small ({content_length} bytes), skipping[/yellow]"
+                            f"[yellow]Image too small ({content_length} bytes), skipping[/yellow]"
                         )
                         return None
 
@@ -468,7 +468,7 @@ class AIPScraper:
                             return image_data
                         except Exception as e:
                             console.print(
-                                f"[red] Failed to decode base64 image: {e}[/red]"
+                                f"[red]Failed to decode base64 image: {e}[/red]"
                             )
                             continue
 
@@ -501,7 +501,7 @@ class AIPScraper:
                             return image_data
                         except Exception as e:
                             console.print(
-                                f"[red] Failed to decode fallback base64 image: {e}[/red]"
+                                f"[red]Failed to decode fallback base64 image: {e}[/red]"
                             )
                             continue
 
@@ -566,11 +566,11 @@ class AIPScraper:
             limit_aerodromes: Optional limit on number of aerodromes to process (for testing)
         """
         console.print("[bold blue]Starting AIP aerodrome chart scraping...[/bold blue]")
-        console.print("[cyan]  Using browser-like navigation with page caching[/cyan]")
+        console.print("[cyan]Using browser-like navigation with page caching[/cyan]")
 
         if limit_aerodromes:
             console.print(
-                f"[yellow] Limiting to first {limit_aerodromes} aerodromes for testing[/yellow]"
+                f"[yellowLimiting to first {limit_aerodromes} aerodromes for testing[/yellow]"
             )
 
         # Get main page
@@ -594,7 +594,7 @@ class AIPScraper:
         # Process each section (simulating user clicking through sections)
         for section_name, section_url in sections:
             console.print(
-                f"\n[bold yellow] Processing section: {section_name}[/bold yellow]"
+                f"\n[bold yellow]Processing section: {section_name}[/bold yellow]"
             )
 
             # Get aerodromes in this section (with caching)
@@ -613,13 +613,13 @@ class AIPScraper:
                 remaining_limit = limit_aerodromes - processed_aerodromes
                 if remaining_limit <= 0:
                     console.print(
-                        f"[yellow] Reached limit of {limit_aerodromes} aerodromes, stopping[/yellow]"
+                        f"[yellow]Reached limit of {limit_aerodromes} aerodromes, stopping[/yellow]"
                     )
                     break
                 if remaining_limit < len(aerodromes):
                     aerodromes = aerodromes[:remaining_limit]
                     console.print(
-                        f"[yellow] Processing only {remaining_limit} aerodromes from section {section_name} (limit reached)[/yellow]"
+                        f"[yellow]Processing only {remaining_limit} aerodromes from section {section_name} (limit reached)[/yellow]"
                     )
 
             # Process aerodromes in this section
@@ -661,7 +661,7 @@ class AIPScraper:
                             and processed_aerodromes >= limit_aerodromes
                         ):
                             console.print(
-                                f"[yellow] Reached limit of {limit_aerodromes} aerodromes, finishing[/yellow]"
+                                f"[yellow]Reached limit of {limit_aerodromes} aerodromes, finishing[/yellow]"
                             )
                             progress.advance(task)
                             break
@@ -685,10 +685,10 @@ class AIPScraper:
                 ]
             )
             console.print(
-                f"[green] Section {section_name} completed: {len(aerodromes)} airports, {section_charts} charts[/green]"
+                f"[green]Section {section_name} completed: {len(aerodromes)} airports, {section_charts} charts[/green]"
             )
 
-        console.print("\n[bold green] Scraping Summary[/bold green]")
+        console.print("\n[bold green]Scraping Summary[/bold green]")
         if limit_aerodromes:
             console.print(
                 f"[yellow]Limit applied: {limit_aerodromes} aerodromes[/yellow]"
@@ -726,11 +726,11 @@ class AIPScraper:
         import time
         
         console.print("[bold blue]Starting AIP aerodrome chart scraping with immediate processing...[/bold blue]")
-        console.print("[cyan]  Processing like a real user: airport → charts → PDFs → next airport[/cyan]")
+        console.print("[cyan]Processing like a real user: airport → charts → PDFs → next airport[/cyan]")
 
         if limit_aerodromes:
             console.print(
-                f"[yellow] Limiting to first {limit_aerodromes} aerodromes for testing[/yellow]"
+                f"[yellow]Limiting to first {limit_aerodromes} aerodromes for testing[/yellow]"
             )
 
         # Get main page
@@ -755,7 +755,7 @@ class AIPScraper:
         # Process each section
         for section_idx, (section_name, section_url) in enumerate(sections):
             console.print(
-                f"\n[bold yellow] Processing section: {section_name}[/bold yellow]"
+                f"\n[bold yellow]Processing section: {section_name}[/bold yellow]"
             )
 
             # Get aerodromes in this section
@@ -773,19 +773,19 @@ class AIPScraper:
                 remaining_limit = limit_aerodromes - processed_aerodromes
                 if remaining_limit <= 0:
                     console.print(
-                        f"[yellow] Reached limit of {limit_aerodromes} aerodromes, stopping[/yellow]"
+                        f"[yellow]Reached limit of {limit_aerodromes} aerodromes, stopping[/yellow]"
                     )
                     break
                 if remaining_limit < len(aerodromes):
                     aerodromes = aerodromes[:remaining_limit]
                     console.print(
-                        f"[yellow] Processing only {remaining_limit} aerodromes from section {section_name} (limit reached)[/yellow]"
+                        f"[yellow]Processing only {remaining_limit} aerodromes from section {section_name} (limit reached)[/yellow]"
                     )
 
             # Process each aerodrome in this section
             for aerodrome_idx, (icao_code, aerodrome_name, page_url) in enumerate(aerodromes):
                 console.print(
-                    f"\n[bold cyan]  Processing airport {processed_aerodromes + 1}: {icao_code} - {aerodrome_name}[/bold cyan]"
+                    f"\n[bold cyan]Processing airport {processed_aerodromes + 1}: {icao_code} - {aerodrome_name}[/bold cyan]"
                 )
 
                 try:
@@ -802,7 +802,7 @@ class AIPScraper:
                     # Process each chart immediately (like a real user)
                     for chart_idx, chart in enumerate(charts, 1):
                         console.print(
-                            f"  Processing chart {chart_idx}/{len(charts)}: {chart['chart_name']}"
+                            f"Processing chart {chart_idx}/{len(charts)}: {chart['chart_name']}"
                         )
 
                         # Build referrer URL
@@ -821,15 +821,15 @@ class AIPScraper:
                             if pdf_path:
                                 successful_pdfs += 1
                                 console.print(
-                                    f"    [green]Created PDF:[/green] {pdf_path.name}"
+                                    f"[green]Created PDF:[/green] {pdf_path.name}"
                                 )
                             else:
                                 console.print(
-                                    f"    [red]Failed to create PDF for {chart['chart_name']}[/red]"
+                                    f"[red]Failed to create PDF for {chart['chart_name']}[/red]"
                                 )
                         else:
                             console.print(
-                                f"    [red]Failed to download image for {chart['chart_name']}[/red]"
+                                f"[red]Failed to download image for {chart['chart_name']}[/red]"
                             )
 
                     all_charts.extend(charts)
@@ -847,7 +847,7 @@ class AIPScraper:
                     # Check if we've hit the limit
                     if limit_aerodromes and processed_aerodromes >= limit_aerodromes:
                         console.print(
-                            f"[yellow] Reached limit of {limit_aerodromes} aerodromes, finishing[/yellow]"
+                            f"[yellow]Reached limit of {limit_aerodromes} aerodromes, finishing[/yellow]"
                         )
                         break
 
@@ -879,10 +879,10 @@ class AIPScraper:
                 ]
             )
             console.print(
-                f"[green] Section {section_name} completed: {len(aerodromes)} airports, {section_charts} charts[/green]"
+                f"[green]Section {section_name} completed: {len(aerodromes)} airports, {section_charts} charts[/green]"
             )
 
-        console.print("\n[bold green] Processing Summary[/bold green]")
+        console.print("\n[bold green]Processing Summary[/bold green]")
         if limit_aerodromes:
             console.print(
                 f"[yellow]Limit applied: {limit_aerodromes} aerodromes[/yellow]"

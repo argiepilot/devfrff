@@ -138,7 +138,7 @@ class PDFGenerator:
     def create_manifest(self) -> Optional[Path]:
         """Create ForeFlight BYOP manifest.json file."""
         if not self.current_date:
-            console.print("[yellow]  No current date available, skipping manifest creation[/yellow]")
+            console.print("[yellow]No current date available, skipping manifest creation[/yellow]")
             return None
             
         manifest_data = {
