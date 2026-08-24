@@ -561,6 +561,63 @@ class TestCleanPackageDirectories:
         assert results[0].removed is True
         assert not custom.exists()
 
+    def test_clean_removes_sibling_zip(self, tmp_path):
+        """Remove the package folder and its sibling zip file."""
+        package = tmp_path / "VFR Charts Package"
+        (package / "byop").mkdir(parents=True)
+        (package / "manifest.json").write_text("{}")
+        zip_path = tmp_path / "VFR Charts Package.zip"
+        zip_path.write_bytes(b"zip-bytes")
+
+        results = clean_package_directories([package])
+
+        removed = {result.path.name: result for result in results if result.removed}
+        assert "VFR Charts Package" in removed
+        assert "VFR Charts Package.zip" in removed
+        assert not package.exists()
+        assert not zip_path.exists()
+
+    def test_clean_removes_zip_when_directory_already_gone(self, tmp_path):
+        """Still delete the zip if the unpacked folder is already gone."""
+        zip_path = tmp_path / "VFR Charts Package.zip"
+        zip_path.write_bytes(b"zip-bytes")
+
+        results = clean_package_directories([tmp_path / "VFR Charts Package"])
+
+        assert len(results) == 1
+        assert results[0].removed is True
+        assert results[0].path == zip_path
+        assert results[0].size_bytes == 9
+        assert not zip_path.exists()
+
+    def test_clean_dry_run_leaves_zip(self, tmp_path):
+        """Dry run reports the zip size but does not delete it."""
+        zip_path = tmp_path / "AIP Germany.zip"
+        zip_path.write_bytes(b"zip-data!")
+
+        results = clean_package_directories(
+            [tmp_path / "AIP Germany"], dry_run=True
+        )
+
+        assert len(results) == 1
+        assert results[0].removed is False
+        assert results[0].skipped_reason is None
+        assert results[0].path == zip_path
+        assert zip_path.exists()
+
+    def test_clean_does_not_remove_unrelated_zip(self, tmp_path):
+        """Leave zip files that are not named after a package directory."""
+        package = tmp_path / "VFR Charts Package"
+        (package / "byop").mkdir(parents=True)
+        other_zip = tmp_path / "notes.zip"
+        other_zip.write_bytes(b"keep")
+
+        results = clean_package_directories([package])
+
+        assert all(result.path != other_zip for result in results)
+        assert other_zip.exists()
+        assert not package.exists()
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

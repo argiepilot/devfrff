@@ -120,7 +120,7 @@ Options for process-realistic:
   --section-pause     Pause between sections (default: 12-18s random)
 
 Options for clean:
-  DIRECTORY...            Package directories to remove (default: "VFR Charts Package", "AIP Germany")
+  DIRECTORY...            Package directories to remove (default: "VFR Charts Package", "AIP Germany", plus sibling .zip files)
   --yes, -y               Skip confirmation prompt
   --dry-run               Show what would be deleted without deleting
 ```
