@@ -24,51 +24,51 @@ The test suite uses [pytest](https://docs.pytest.org/), a popular Python testing
 
 ### Test Statistics
 
-- **Total Tests**: 42
-- **Test Files**: 4
+- **Total Tests**: 58
+- **Test Files**: 5
 - **Coverage**: All major classes and methods
 
 ## Running Tests
 
-### Basic Commands
+Run tests with uv so they use the project environment:
 
 ```bash
 # Run all tests
-pytest tests/
+uv run pytest tests/
 
 # Run with verbose output (shows each test name)
-pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run specific test file
-pytest tests/test_scraper.py
+uv run pytest tests/test_scraper.py
 
 # Run specific test class
-pytest tests/test_scraper.py::TestAIPScraper
+uv run pytest tests/test_scraper.py::TestAIPScraper
 
 # Run specific test method
-pytest tests/test_scraper.py::TestAIPScraper::test_init
+uv run pytest tests/test_scraper.py::TestAIPScraper::test_init
 
 # Run tests and show coverage report (if pytest-cov is installed)
-pytest tests/ --cov=src --cov-report=html
+uv run pytest tests/ --cov=src --cov-report=html
 ```
 
 ### Running Tests in Different Modes
 
 ```bash
 # Run tests and stop at first failure
-pytest tests/ -x
+uv run pytest tests/ -x
 
 # Run tests and show local variables on failure
-pytest tests/ -l
+uv run pytest tests/ -l
 
 # Run tests in parallel (if pytest-xdist is installed)
-pytest tests/ -n auto
+uv run pytest tests/ -n auto
 
 # Run only tests that failed last time
-pytest tests/ --lf
+uv run pytest tests/ --lf
 
 # Run tests matching a pattern
-pytest tests/ -k "test_init"
+uv run pytest tests/ -k "test_init"
 ```
 
 ## Test Structure
@@ -81,7 +81,8 @@ tests/
 ├── test_scraper.py         # Tests for AIPScraper
 ├── test_faa_scraper.py     # Tests for FAAScraper
 ├── test_pdf_generator.py   # Tests for PDFGenerator
-└── test_byop_packager.py   # Tests for BYOPPackager
+├── test_byop_packager.py   # Tests for BYOPPackager
+└── test_mbtiles_converter.py  # Tests for paletted GeoTIFF handling
 ```
 
 ### Test File Structure
@@ -485,15 +486,15 @@ def test_batch_processing(self):
 **Solution**: 
 - Make sure you're running tests from the project root
 - Check that the module path is correct (`src.module_name`)
-- Install missing dependencies: `pip install -r requirements.txt`
+- Install missing dependencies: `uv sync --group dev`
 
 #### 2. Tests Fail Due to Missing Dependencies
 
 **Problem**: Some tests require optional dependencies (like `img2pdf`)
 
 **Solution**:
-- Install the dependency: `pip install img2pdf`
-- Or skip tests that require it: `pytest tests/ -k "not pdf_generator"`
+- Install the dependency: `uv add img2pdf`
+- Or skip tests that require it: `uv run pytest tests/ -k "not pdf_generator"`
 
 #### 3. Mock Not Working
 
@@ -519,7 +520,7 @@ def test_batch_processing(self):
 
 **Solution**:
 - Check for hardcoded paths (use `tmp_path` instead)
-- Verify all dependencies are in `requirements.txt`
+- Verify all dependencies are in `pyproject.toml` / `uv.lock`
 - Check for time-dependent tests (use mocked time)
 - Ensure tests don't depend on external services
 
@@ -564,13 +565,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.11'
-      - run: pip install -r requirements.txt
-      - run: pip install pytest pytest-cov
-      - run: pytest tests/ -v
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --group dev
+      - run: uv run pytest tests/ -v
 ```
 
 ## Conclusion

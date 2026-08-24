@@ -1,0 +1,33 @@
+[project]
+name = "devfrff"
+version = "0.1.0"
+description = "VFR Charts from Germany and the USA for ForeFlight BYOP"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4",
+    "img2pdf",
+    "mercantile",
+    "morecantile",
+    "numpy",
+    "pillow",
+    "rasterio",
+    "requests",
+    "rich",
+    "rio-cogeo",
+    "rio-tiler",
+    "typer",
+]
+
+[dependency-groups]
+dev = [
+    "black",
+    "flake8",
+    "isort",
+    "mypy",
+    "pytest",
+]
+
+[tool.uv]
+package = false
