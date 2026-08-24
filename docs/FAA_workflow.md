@@ -4,7 +4,7 @@
 - Scrapes the FAA VFR Raster Charts page for GEO‑TIFF download links (Sectional/Terminal).
 - Downloads the ZIPs and extracts the GeoTIFFs.
 - Handles paletted (indexed color) TIFFs by building a VRT with RGBA expansion on-the-fly (no huge intermediate file).
-  VRT (Virtual Dataset): a tiny XML wrapper produced via gdal_translate -of VRT -expand rgba for paletted TIFFs. It references the original raster and expands to RGBA on-the-fly, avoiding large intermediate files while feeding gdal2tiles.
+  VRT (Virtual Dataset): a tiny XML wrapper that expands paletted TIFFs to RGBA on-the-fly. It references the original raster and avoids large intermediate files.
 - Generates multi-zoom tiles with `gdal2tiles.py` (zoom 6–12) using XYZ numbering.
 - Converts the tile directory into an MBTiles file, compressing tiles to JPEG (quality 75) during insertion to reduce size.
 - Writes manifest and packages output under `VFR Charts Package/`.
@@ -12,7 +12,7 @@
 ### Key tools and why
 - `requests` + `BeautifulSoup`: scrape FAA chart tables and extract GEO‑TIFF links.
 - `zipfile`: download/extract GEO‑TIFFs from FAA ZIPs.
-- `gdal_translate -of VRT -expand rgba`: turns paletted TIFFs into a VRT (virtual) RGBA source without producing a giant intermediate file.
+- `gdal_translate -of VRT -expand rgba` / rasterio VRT: turns paletted TIFFs into a VRT (virtual) RGBA source without producing a giant intermediate file.
 - `gdal2tiles.py -z 6-12 --xyz`: creates tiles across multiple zoom levels; 6–12 keeps charts visible when zoomed out but avoids explosion in tile count.
 - `sqlite3` + `Pillow`: build MBTiles manually from the tiles directory and recompress to JPEG (quality 75) to cut size.
 
@@ -32,12 +32,12 @@
   - Derived from the source GeoTIFF geotransform: `minx,miny,maxx,maxy` stored in metadata.
 
 ### Workflow steps (CLI)
-1. Activate env: `conda activate devfrff`
+1. Install deps: `uv sync`  
 2. Run FAA-only modes (recommended for iterating):  
-   - Terminal charts (full): `python run.py process-faa-terminal`  
-   - Terminal charts (quick): `python run.py process-faa-terminal --quick --limit 1`  
-   - Sectional charts (full): `python run.py process-faa-sectional`  
-   - Sectional charts (quick): `python run.py process-faa-sectional --quick --limit 1`
+   - Terminal charts (full): `uv run python run.py process-faa-terminal`  
+   - Terminal charts (quick): `uv run python run.py process-faa-terminal --quick --limit 1`  
+   - Sectional charts (full): `uv run python run.py process-faa-sectional`  
+   - Sectional charts (quick): `uv run python run.py process-faa-sectional --quick --limit 1`
 3. Outputs:  
    - `VFR Charts Package/layers/terminal_<Name>.mbtiles` (JPEG-compressed tiles, zoom 6–12, 512x512 tiles)  
    - `VFR Charts Package/manifest.json`

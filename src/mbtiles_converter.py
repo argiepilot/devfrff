@@ -21,7 +21,9 @@ from rich.progress import (
     TaskProgressColumn,
     TimeRemainingColumn,
 )
+from rasterio.enums import ColorInterp
 from rasterio.warp import transform_bounds
+import rasterio
 from rio_tiler.io import COGReader
 from rio_cogeo.cogeo import cog_translate
 from rio_cogeo.profiles import cog_profiles
@@ -236,6 +238,54 @@ class MBTilesConverter:
             
             return False
 
+    def _write_palette_expand_vrt(self, geotiff_path: Path, vrt_path: Path) -> None:
+        """Write a GDAL VRT that expands a paletted GeoTIFF to RGBA on the fly."""
+        from xml.sax.saxutils import escape
+
+        with rasterio.open(geotiff_path) as src:
+            width = src.width
+            height = src.height
+            geotransform = src.transform.to_gdal()
+            srs_wkt = src.crs.to_wkt() if src.crs else None
+
+        source = escape(str(geotiff_path.resolve()))
+        srs_xml = f"  <SRS>{escape(srs_wkt)}</SRS>\n" if srs_wkt else ""
+        geo_xml = ", ".join(str(value) for value in geotransform)
+        bands_xml = []
+        for band, interp in enumerate(("Red", "Green", "Blue", "Alpha"), start=1):
+            bands_xml.append(
+                "  <VRTRasterBand dataType=\"Byte\" band=\""
+                f"{band}\">\n"
+                f"    <ColorInterp>{interp}</ColorInterp>\n"
+                "    <ComplexSource>\n"
+                f"      <SourceFilename relativeToVRT=\"0\">{source}</SourceFilename>\n"
+                "      <SourceBand>1</SourceBand>\n"
+                f"      <ColorTableComponent>{band}</ColorTableComponent>\n"
+                "    </ComplexSource>\n"
+                "  </VRTRasterBand>"
+            )
+
+        vrt_path.write_text(
+            f'<VRTDataset rasterXSize="{width}" rasterYSize="{height}">\n'
+            f"{srs_xml}"
+            f"  <GeoTransform>{geo_xml}</GeoTransform>\n"
+            + "\n".join(bands_xml)
+            + "\n</VRTDataset>\n",
+            encoding="utf-8",
+        )
+
+    def _is_paletted_geotiff(self, geotiff_path: Path) -> bool:
+        """Return True if the GeoTIFF uses an indexed color table."""
+        with rasterio.open(geotiff_path) as src:
+            if src.count != 1:
+                return False
+            if src.colorinterp and src.colorinterp[0] == ColorInterp.palette:
+                return True
+            try:
+                return bool(src.colormap(1))
+            except ValueError:
+                return False
+
     def _check_and_convert_paletted_geotiff(
         self, geotiff_path: Path, temp_dir: Path, verbose: bool = False
     ) -> Optional[Path]:
@@ -246,67 +296,30 @@ class MBTilesConverter:
             temp_dir: Temporary directory for converted file
 
         Returns:
-            Path to RGBA GeoTIFF if conversion needed, original path otherwise
+            Path to RGBA VRT if conversion needed, original path otherwise
         """
-        
-
         try:
-            from osgeo import gdal
+            if not self._is_paletted_geotiff(geotiff_path):
+                return geotiff_path
 
-            src_ds = gdal.Open(str(geotiff_path))
-            if src_ds is None:
-                return None
-
-            # Check if it's paletted (indexed color)
-            band = src_ds.GetRasterBand(1)
-            color_table = band.GetColorTable()
-
-            
-
-            src_ds = None
-            band = None
-
-            if color_table is not None:
-                # Use VRT format instead of full RGBA conversion (much faster!)
-                # VRT is a virtual format that expands on-the-fly without creating a huge file
-                if verbose:
-                    console.print("[cyan]Creating VRT for paletted GeoTIFF (expanding to RGBA on-the-fly)...[/cyan]")
-                vrt_path = temp_dir / f"{geotiff_path.stem}_rgba.vrt"
-
-                cmd = [
-                    "gdal_translate",
-                    "-of",
-                    "VRT",
-                    "-expand",
-                    "rgba",
-                    "-a_nodata",
-                    "0",
-                    str(geotiff_path),
-                    str(vrt_path),
-                ]
-
-                
-
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=60
+            # VRT expands the color table on the fly without a huge RGBA GeoTIFF.
+            if verbose:
+                console.print(
+                    "[cyan]Creating VRT for paletted GeoTIFF "
+                    "(expanding to RGBA on-the-fly)...[/cyan]"
                 )
+            vrt_path = temp_dir / f"{geotiff_path.stem}_rgba.vrt"
+            self._write_palette_expand_vrt(geotiff_path, vrt_path)
+            if vrt_path.exists():
+                return vrt_path
 
-                if result.returncode == 0 and vrt_path.exists():
-                    
-                    return vrt_path
-                else:
-                    console.print(
-                        f"[yellow]Warning: Failed to create VRT: {result.stderr}[/yellow]"
-                    )
-                    
-                    return None
-
-            return geotiff_path  # Not paletted, use original
-
+            console.print("[yellow]Warning: Failed to create VRT[/yellow]")
+            return None
         except Exception as e:
-            console.print(f"[yellow]Warning: Could not check GeoTIFF format: {e}[/yellow]")
-            
-            return geotiff_path  # Assume not paletted, use original
+            console.print(
+                f"[yellow]Warning: Could not check GeoTIFF format: {e}[/yellow]"
+            )
+            return geotiff_path
 
     def _inspect_geotiff_quick(self, geotiff_path: Path) -> None:
         """Collect minimal GeoTIFF metadata for debugging palette/scaling issues."""

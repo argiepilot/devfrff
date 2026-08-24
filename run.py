@@ -19,6 +19,7 @@ if __name__ == "__main__":
         "process-all",
         "process-faa-sectional",
         "process-faa-terminal",
+        "clean",
         "info",
     ]
     
