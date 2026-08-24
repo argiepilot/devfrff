@@ -1,6 +1,8 @@
 # deVFRff
 ## VFR Charts from Germany and the USA for ForeFlight BYOP
 
+[![Tests](https://github.com/argiepilot/devfrff/actions/workflows/tests.yml/badge.svg)](https://github.com/argiepilot/devfrff/actions/workflows/tests.yml)
+
 A CLI tool that collects VFR charts and builds ForeFlight BYOP (Bring Your Own Plates) content packs. It supports DFS (Germany) Visual Operations and Aerodrome charts ("Sichtflugkarten" / "Flugplatzkarten") as PDFs, and FAA (USA) Sectional and Terminal Area charts as georeferenced MBTiles overlays.
 
 > [!IMPORTANT]
