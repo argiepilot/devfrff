@@ -13,7 +13,7 @@ from rich.console import Console
 console = Console()
 
 def test_default_folder_name():
-    """Test that the default folder name is 'AIP Germany'."""
+    """Test that the default folder name is 'VFR Charts Package'."""
     
     console.print("[bold blue]Testing default folder name...[/bold blue]")
     

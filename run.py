@@ -10,19 +10,16 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from main import app
 
 if __name__ == "__main__":
-    # If no command is specified, default to process-all (unified processing)
+    # If no command is specified, default to process-all (full catalogs, no prompts)
     valid_commands = [
-        "scrape",
-        "download",
-        "full-pipeline",
-        "process-realistic",
         "process-all",
+        "process-dfs",
         "process-faa-sectional",
         "process-faa-terminal",
         "clean",
         "info",
     ]
-    
+
     # Check if first argument is a valid command
     # Skip insertion if:
     # 1. No arguments provided (len(sys.argv) == 1)
@@ -33,9 +30,6 @@ if __name__ == "__main__":
         and sys.argv[1] not in valid_commands
         and not sys.argv[1].startswith("-")
     ):
-        # No valid command specified: default to process-all, but prompt interactively
-        # (y/n questions defaulting to Yes)
         sys.argv.insert(1, "process-all")
-        sys.argv.insert(2, "--interactive")
-    
+
     app()

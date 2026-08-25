@@ -34,10 +34,11 @@
 ### Workflow steps (CLI)
 1. Install deps: `uv sync`  
 2. Run FAA-only modes (recommended for iterating):  
-   - Terminal charts (full): `uv run python run.py process-faa-terminal`  
-   - Terminal charts (quick): `uv run python run.py process-faa-terminal --quick --limit 1`  
-   - Sectional charts (full): `uv run python run.py process-faa-sectional`  
-   - Sectional charts (quick): `uv run python run.py process-faa-sectional --quick --limit 1`
+   - Terminal charts (full catalog): `uv run python run.py process-faa-terminal`  
+   - Sectional charts (full catalog): `uv run python run.py process-faa-sectional`  
+   - Combined pack: `uv run python run.py process-all`  
+   - Testing only (`--limit` / `--quick` do not produce a complete pack):  
+     `uv run python run.py process-faa-terminal --quick --limit 1`
 3. Outputs:  
    - `VFR Charts Package/layers/terminal_<Name>.mbtiles` (JPEG-compressed tiles, zoom 6–12, 512x512 tiles)  
    - `VFR Charts Package/manifest.json`

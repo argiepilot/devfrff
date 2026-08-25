@@ -11,7 +11,7 @@ from rich.console import Console
 
 console = Console()
 
-# Default directories created by process-all and DFS-only commands.
+# Default clean targets: the current package name, plus leftover AIP Germany dirs.
 DEFAULT_PACKAGE_DIR_NAMES = ("VFR Charts Package", "AIP Germany")
 
 

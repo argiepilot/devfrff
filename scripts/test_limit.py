@@ -50,7 +50,7 @@ def test_limit_functionality():
             console.print(f"[red] Limit exceeded: {len(unique_icao)} > {test_limit} aerodromes[/red]")
         
         console.print(f"\n[bold cyan] Perfect for testing PDF generation![/bold cyan]")
-        console.print(f"[cyan]Use: python -m src.main full-pipeline --limit {test_limit}[/cyan]")
+        console.print(f"[cyan]Use: uv run python run.py process-dfs --limit {test_limit}[/cyan]")
         
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")

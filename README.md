@@ -17,16 +17,20 @@ git clone <repository-url>
 cd devfrff
 uv sync
 uv run python run.py info          # sanity check
-uv run python run.py               # process-all, interactive source selection
+uv run python run.py               # process-all: full DFS + FAA catalogs
 ```
 
 That writes `VFR Charts Package/`. Zip the folder, then import it into ForeFlight (AirDrop, email, iTunes, a link, or Cloud Documents on Pro and above). See the [ForeFlight Content Packs Guide](https://foreflight.com/support/content-packs/). This takes a while.
+
+DFS requests always pause between airports and letter sections so the site is less likely to block the IP.
 
 After ForeFlight has the pack, reclaim disk space:
 
 ```bash
 uv run python run.py clean         # folders and sibling .zip files
 ```
+
+`clean` also removes a leftover `AIP Germany/` directory from older versions.
 
 ## Usage
 
@@ -35,25 +39,44 @@ uv run python run.py --help
 uv run python run.py [COMMAND] --help
 ```
 
+### Build a pack (full catalogs)
+
+Omit `--limit` / `--quick`. These are the commands for a real content pack:
+
+```bash
+uv run python run.py                       # same as process-all
+uv run python run.py process-all           # DFS + FAA sectional + FAA terminal
+uv run python run.py process-dfs           # Germany PDFs only
+uv run python run.py process-faa-sectional
+uv run python run.py process-faa-terminal
+```
+
 | Command | What it does |
 | --- | --- |
-| `process-all` | DFS + FAA into one package (default when you omit a command) |
-| `process-realistic` | DFS only, with human-like pauses |
+| `process-all` | DFS + both FAA types (default when you omit a command) |
+| `process-dfs` | DFS (Germany) PDFs only |
 | `process-faa-sectional` | FAA sectional MBTiles only |
 | `process-faa-terminal` | FAA terminal MBTiles only |
 | `clean` | Remove generated packages and their `.zip` files |
 | `info` | Tool overview |
 
-`process-all` includes DFS, FAA sectional, and FAA terminal unless you pass `--no-dfs`, `--no-faa-sectional`, or `--no-faa-terminal`.
+`process-all --interactive` asks which sources to include. `--output-dir` changes the package folder (default: `VFR Charts Package`).
+
+### Testing only
+
+`--limit` and `--quick` cap a run so you can check the pipeline. They do **not** produce a complete pack.
 
 ```bash
-uv run python run.py process-all --output-dir "My Charts"
-uv run python run.py process-all --limit-faa 2 --verbose
-uv run python run.py process-realistic --limit 3
+uv run python run.py process-dfs --limit 3
+uv run python run.py process-all --limit-dfs 3 --limit-faa 2
 uv run python run.py process-faa-terminal --quick --limit 1
-uv run python run.py clean --yes
 uv run python run.py clean --dry-run
+uv run python run.py clean --yes
 ```
+
+- `--limit` / `--limit-dfs`: first N German aerodromes (an airport can still yield several PDFs)
+- `--limit` / `--limit-faa`: first N FAA charts of that type (`--limit-faa 2` with both FAA sources on is 2 sectionals **and** 2 terminals)
+- `--quick` / `--faa-quick`: lower FAA max zoom (faster, less detail)
 
 ## Output
 
@@ -67,8 +90,6 @@ VFR Charts Package/
     ├── S_Detroit.mbtiles
     └── T_Chicago.mbtiles
 ```
-
-DFS-only runs (`process-realistic`, `full-pipeline`, `download`) write the same layout to `AIP Germany/`.
 
 DFS PDFs are named `{ICAO}_Visual_{ChartName}.PDF` or `{ICAO}_Info_{ChartName}.PDF` (AD pages). FAA files are `S_{ChartName}.mbtiles` (sectional) and `T_{ChartName}.mbtiles` (terminal).
 

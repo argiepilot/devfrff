@@ -119,7 +119,7 @@ def main():
         print("\n" + "=" * 50)
         print(" Examples completed successfully!")
         print("\nTo run the full tool:")
-        print("  python scripts/run.py full-pipeline")
+        print("  uv run python run.py process-dfs")
         
     except Exception as e:
         print(f"\n Example failed: {e}")

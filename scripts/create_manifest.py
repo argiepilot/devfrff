@@ -21,7 +21,7 @@ def create_manifest():
     current_date = "2025JUL25"
     
     # Create PDF generator with the current date
-    pdf_generator = PDFGenerator("AIP Germany", current_date=current_date)
+    pdf_generator = PDFGenerator("VFR Charts Package", current_date=current_date)
     
     # Create manifest
     manifest_path = pdf_generator.create_manifest()
@@ -37,7 +37,7 @@ def create_manifest():
         console.print("[red]Failed to create manifest[/red]")
     
     # Check directory structure
-    output_dir = Path("AIP Germany")
+    output_dir = Path("VFR Charts Package")
     if output_dir.exists():
         console.print(f"[green]Output directory:[/green] {output_dir}")
         
