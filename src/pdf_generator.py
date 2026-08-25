@@ -15,7 +15,7 @@ console = Console()
 class PDFGenerator:
     """Generate PDF files from chart images for ForeFlight BYOP."""
 
-    def __init__(self, output_dir: str = "AIP Germany", current_date: Optional[str] = None):
+    def __init__(self, output_dir: str = "VFR Charts Package", current_date: Optional[str] = None):
         """Initialize the PDF generator."""
         self.output_dir = Path(output_dir)
         self.current_date = current_date
